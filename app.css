@@ -154,6 +154,15 @@ textarea:focus-visible {
     -webkit-font-feature-settings: "liga";
     -webkit-font-smoothing: antialiased;
 }
+.arrow-forward-icon {
+    font-size: 18px;
+    font-weight: 700;
+    font-variation-settings:
+        "FILL" 0,
+        "wght" 700,
+        "GRAD" 0,
+        "opsz" 24;
+}
 .app-main {
     min-height: 100vh;
     margin-left: var(--rail-width);
@@ -560,7 +569,7 @@ textarea:focus-visible {
     opacity: 0.14;
     pointer-events: none;
     transform: scale(0);
-    animation: material-ripple 560ms cubic-bezier(0.18, 0.7, 0.25, 1) forwards;
+    animation: material-ripple 400ms cubic-bezier(0.18, 0.7, 0.25, 1) forwards;
 }
 @keyframes material-ripple {
     to {
@@ -1880,8 +1889,11 @@ md-filled-button.m3-button,
 md-filled-tonal-button.m3-button,
 md-text-button.m3-button {
     --md-filled-button-hover-container-elevation: 0;
+    --md-filled-button-pressed-state-layer-opacity: 0;
     --md-filled-tonal-button-hover-container-elevation: 0;
+    --md-filled-tonal-button-pressed-state-layer-opacity: 0;
     --md-text-button-hover-container-elevation: 0;
+    --md-text-button-pressed-state-layer-opacity: 0;
     --md-filled-button-hover-state-layer-color: var(--primary);
     --md-filled-button-hover-state-layer-opacity: 0.08;
     --md-filled-button-pressed-state-layer-color: var(--primary-deep);
@@ -1907,7 +1919,10 @@ md-icon-button.m3-icon-button {
     --md-icon-button-hover-state-layer-color: var(--primary);
     --md-icon-button-hover-state-layer-opacity: 0.08;
     --md-icon-button-pressed-state-layer-color: var(--primary-deep);
-    --md-icon-button-pressed-state-layer-opacity: 0.12;
+    --md-icon-button-pressed-state-layer-opacity: 0;
+}
+md-menu-item {
+    --md-menu-item-pressed-state-layer-opacity: 0;
 }
 button,
 .button,

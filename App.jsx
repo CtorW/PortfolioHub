@@ -1,5 +1,4 @@
 import {
-    ArrowRight,
     ArrowUpRight,
     BookOpen,
     Bot,
@@ -146,8 +145,22 @@ function MaterialButton({ variant = "filled", icon: Icon, className = "", childr
     return React.createElement(
         tag,
         { className: classNames, type: "button", ...props },
-        Icon ? <Icon slot="icon" size={18} strokeWidth={2} aria-hidden="true" /> : null,
+        Icon ? (
+            Icon === ArrowForwardIcon ? (
+                <Icon />
+            ) : (
+                <Icon slot="icon" size={18} strokeWidth={2} aria-hidden="true" />
+            )
+        ) : null,
         children,
+    );
+}
+
+function ArrowForwardIcon() {
+    return (
+        <span slot="icon" className="material-symbols-rounded arrow-forward-icon" aria-hidden="true">
+            arrow_forward
+        </span>
     );
 }
 
@@ -709,7 +722,7 @@ function ProjectGrid({
                 <h2>{query ? "No matching capstones" : emptyTitle}</h2>
                 <p>{query ? "Try another title or keyword." : emptyMessage}</p>
                 {!query && !session && (
-                    <MaterialButton icon={ArrowRight} onClick={onFacultyLogin}>
+                    <MaterialButton icon={ArrowForwardIcon} onClick={onFacultyLogin}>
                         Faculty sign in
                     </MaterialButton>
                 )}
@@ -842,7 +855,7 @@ function OverviewView({ session, projects, facultyAccounts, navigate }) {
                         </div>
                         <MaterialButton
                             variant="tonal"
-                            icon={ArrowRight}
+                            icon={ArrowForwardIcon}
                             className="m3-compact"
                             onClick={() => navigate(admin ? "manage-projects" : "my-projects")}
                         >
@@ -876,7 +889,7 @@ function OverviewView({ session, projects, facultyAccounts, navigate }) {
                             ? "Approve faculty accounts before they can publish."
                             : "A submitted capstone appears on the public showcase immediately."}
                     </p>
-                    <MaterialButton icon={ArrowRight} onClick={() => navigate(admin ? "faculty" : "upload")}>
+                    <MaterialButton icon={ArrowForwardIcon} onClick={() => navigate(admin ? "faculty" : "upload")}>
                         {admin ? "Review faculty" : "Upload a capstone"}
                     </MaterialButton>
                 </article>
@@ -966,7 +979,7 @@ function UploadView({ session, publish }) {
                         </span>
                     </div>
                     <div className="form-actions">
-                        <MaterialButton icon={ArrowRight} type="submit">
+                        <MaterialButton icon={ArrowForwardIcon} type="submit">
                             Publish capstone
                         </MaterialButton>
                         <MaterialButton variant="tonal" onClick={() => formRef.current?.reset()}>
@@ -1174,7 +1187,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                                 placeholder="name.sjc@phinmaed.com"
                             />
                         </label>
-                        <MaterialButton className="auth-submit" icon={ArrowRight} type="submit">
+                        <MaterialButton className="auth-submit" icon={ArrowForwardIcon} type="submit">
                             Continue as {role}
                         </MaterialButton>
                         <MaterialButton variant="text" className="demo-fill" onClick={() => setEmail(demoEmail)}>
@@ -1189,7 +1202,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                             </div>
                             <MaterialButton
                                 variant="tonal"
-                                icon={ArrowRight}
+                                icon={ArrowForwardIcon}
                                 className="m3-compact"
                                 onClick={() => setRequestOpen(!requestOpen)}
                             >
@@ -1401,14 +1414,32 @@ function LinkRipples() {
         }
         function onPointer(event) {
             if (!event.isPrimary || event.button !== 0) return;
+            const button = event.target.closest(
+                'button, input[type="button"], input[type="submit"], input[type="reset"], md-filled-button, md-filled-tonal-button, md-text-button, md-icon-button, md-menu-item',
+            );
+            if (button?.matches(":disabled") || button?.hasAttribute("disabled")) return;
             const link = event.target.closest(".rail-link");
             const target =
+                button ||
                 link?.querySelector(".rail-link-icon") ||
                 event.target.closest(".rail-brand, .footer-top-link, .footer-brand");
             if (target) createRipple(target, event.clientX, event.clientY);
         }
+        function onKeyDown(event) {
+            if (event.repeat || !["Enter", " "].includes(event.key)) return;
+            const button = event.target.closest(
+                'button, input[type="button"], input[type="submit"], input[type="reset"], md-filled-button, md-filled-tonal-button, md-text-button, md-icon-button, md-menu-item',
+            );
+            if (!button || button.matches(":disabled") || button.hasAttribute("disabled")) return;
+            const box = button.getBoundingClientRect();
+            createRipple(button, box.left + box.width / 2, box.top + box.height / 2);
+        }
         document.addEventListener("pointerdown", onPointer, true);
-        return () => document.removeEventListener("pointerdown", onPointer, true);
+        document.addEventListener("keydown", onKeyDown, true);
+        return () => {
+            document.removeEventListener("pointerdown", onPointer, true);
+            document.removeEventListener("keydown", onKeyDown, true);
+        };
     }, []);
     return null;
 }
