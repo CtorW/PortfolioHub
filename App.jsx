@@ -18,6 +18,7 @@ import {
     LogIn,
     LogOut,
     Mic,
+    Moon,
     PanelsTopLeft,
     Pencil,
     Plus,
@@ -27,7 +28,6 @@ import {
     Send,
     Settings2,
     ShieldCheck,
-    Moon,
     Sun,
     Trash2,
     UserRoundPlus,
@@ -257,7 +257,11 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
                     onClick={toggleTheme}
                 >
                     <span className="rail-link-icon">
-                        {theme === "dark" ? <Sun className="rail-icon" size={22} /> : <Moon className="rail-icon" size={22} />}
+                        {theme === "dark" ? (
+                            <Sun className="rail-icon" size={22} />
+                        ) : (
+                            <Moon className="rail-icon" size={22} />
+                        )}
                     </span>
                     <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
                 </button>
@@ -302,7 +306,10 @@ function projectStatusAnswer(question, projects) {
     }
 
     return matches
-        .map(project => `${project.title}: ${project.status || "Published"}${project.createdLabel ? ` on ${project.createdLabel}` : ""}.`)
+        .map(
+            project =>
+                `${project.title}: ${project.status || "Published"}${project.createdLabel ? ` on ${project.createdLabel}` : ""}.`,
+        )
         .join("\n");
 }
 
@@ -330,7 +337,9 @@ function AssistantView({ session, projects }) {
             const data = await response.json();
             const availableModels = Array.isArray(data.models) ? data.models : [];
             setModels(availableModels);
-            setModel(current => (availableModels.some(item => item.name === current) ? current : availableModels[0]?.name || ""));
+            setModel(current =>
+                availableModels.some(item => item.name === current) ? current : availableModels[0]?.name || "",
+            );
             setConnection(availableModels.length ? "connected" : "no-models");
         } catch {
             setModels([]);
@@ -399,7 +408,10 @@ function AssistantView({ session, projects }) {
             if (!answer) throw new Error("The selected model returned an empty response.");
             setMessages(current => [...current, { role: "assistant", content: answer }]);
         } catch (error) {
-            setMessages(current => [...current, { role: "assistant", content: `Ollama request failed: ${error.message}` }]);
+            setMessages(current => [
+                ...current,
+                { role: "assistant", content: `Ollama request failed: ${error.message}` },
+            ]);
         } finally {
             setSending(false);
         }
@@ -466,14 +478,23 @@ function AssistantView({ session, projects }) {
                                 </md-menu-item>
                             ))}
                         </md-menu>
-                        <button type="button" className="assistant-retry" onClick={loadModels} aria-label="Retry Ollama connection" title="Retry Ollama connection">
+                        <button
+                            type="button"
+                            className="assistant-retry"
+                            onClick={loadModels}
+                            aria-label="Retry Ollama connection"
+                            title="Retry Ollama connection"
+                        >
                             <RefreshCw size={17} />
                         </button>
                     </div>
                 </div>
                 <div className="assistant-messages" ref={messagesRef} aria-live="polite">
                     {messages.map((message, index) => (
-                        <article className={`assistant-message message-${message.role}`} key={`${index}-${message.role}`}>
+                        <article
+                            className={`assistant-message message-${message.role}`}
+                            key={`${index}-${message.role}`}
+                        >
                             <span className="assistant-message-icon">
                                 {message.role === "assistant" ? <Bot size={17} /> : <Users size={17} />}
                             </span>
@@ -505,9 +526,13 @@ function AssistantView({ session, projects }) {
                     </MaterialButton>
                 </form>
                 {connection === "no-models" && (
-                    <p className="assistant-setup-note">Ollama is running. Install a model, then retry: <code>ollama pull llama3.2</code></p>
+                    <p className="assistant-setup-note">
+                        Ollama is running. Install a model, then retry: <code>ollama pull llama3.2</code>
+                    </p>
                 )}
-                {connection === "offline" && <p className="assistant-setup-note">Start Ollama at localhost:11434, then retry the connection.</p>}
+                {connection === "offline" && (
+                    <p className="assistant-setup-note">Start Ollama at localhost:11434, then retry the connection.</p>
+                )}
             </section>
         </>
     );
@@ -1402,7 +1427,9 @@ export default function App() {
 
     useLayoutEffect(() => {
         document.documentElement.dataset.theme = theme;
-        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#11150b" : "#f7fbea");
+        document
+            .querySelector('meta[name="theme-color"]')
+            ?.setAttribute("content", theme === "dark" ? "#11150b" : "#f7fbea");
     }, [theme]);
     useEffect(() => {
         try {
