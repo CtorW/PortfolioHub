@@ -10,6 +10,7 @@
     --line: #c9d0b9;
     --primary: #3e6700;
     --primary-deep: #2f4f00;
+    --primary-contrast: #fffef8;
     --accent: #c9ec83;
     --accent-soft: #e3f4c1;
     --mint: #c9e9d3;
@@ -22,6 +23,74 @@
     --motion-standard-default-spatial: 500ms cubic-bezier(0.27, 1.06, 0.18, 1);
     --rail-width: 84px;
     --content-inset: clamp(24px, 5vw, 72px);
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --md-sys-color-primary: rgb(151 217 69);
+    --md-sys-color-surface-tint: rgb(151 217 69);
+    --md-sys-color-on-primary: rgb(31 55 0);
+    --md-sys-color-primary-container: rgb(100 161 4);
+    --md-sys-color-on-primary-container: rgb(25 47 0);
+    --md-sys-color-secondary: rgb(177 209 136);
+    --md-sys-color-on-secondary: rgb(31 55 0);
+    --md-sys-color-secondary-container: rgb(54 80 22);
+    --md-sys-color-on-secondary-container: rgb(163 195 123);
+    --md-sys-color-tertiary: rgb(93 220 176);
+    --md-sys-color-on-tertiary: rgb(0 56 40);
+    --md-sys-color-tertiary-container: rgb(5 164 124);
+    --md-sys-color-on-tertiary-container: rgb(0 47 33);
+    --md-sys-color-error: rgb(255 180 171);
+    --md-sys-color-on-error: rgb(105 0 5);
+    --md-sys-color-error-container: rgb(147 0 10);
+    --md-sys-color-on-error-container: rgb(255 218 214);
+    --md-sys-color-background: rgb(17 21 11);
+    --md-sys-color-on-background: rgb(224 228 212);
+    --md-sys-color-surface: rgb(17 21 11);
+    --md-sys-color-on-surface: rgb(224 228 212);
+    --md-sys-color-surface-variant: rgb(66 73 55);
+    --md-sys-color-on-surface-variant: rgb(194 202 178);
+    --md-sys-color-outline: rgb(140 148 126);
+    --md-sys-color-outline-variant: rgb(66 73 55);
+    --md-sys-color-shadow: rgb(0 0 0);
+    --md-sys-color-scrim: rgb(0 0 0);
+    --md-sys-color-inverse-surface: rgb(224 228 212);
+    --md-sys-color-inverse-on-surface: rgb(46 50 39);
+    --md-sys-color-inverse-primary: rgb(63 105 0);
+    --md-sys-color-primary-fixed: rgb(178 246 95);
+    --md-sys-color-on-primary-fixed: rgb(16 32 0);
+    --md-sys-color-primary-fixed-dim: rgb(151 217 69);
+    --md-sys-color-on-primary-fixed-variant: rgb(47 79 0);
+    --md-sys-color-secondary-fixed: rgb(204 238 161);
+    --md-sys-color-on-secondary-fixed: rgb(16 32 0);
+    --md-sys-color-secondary-fixed-dim: rgb(177 209 136);
+    --md-sys-color-on-secondary-fixed-variant: rgb(52 78 20);
+    --md-sys-color-tertiary-fixed: rgb(124 249 203);
+    --md-sys-color-on-tertiary-fixed: rgb(0 33 22);
+    --md-sys-color-tertiary-fixed-dim: rgb(93 220 176);
+    --md-sys-color-on-tertiary-fixed-variant: rgb(0 81 60);
+    --md-sys-color-surface-dim: rgb(17 21 11);
+    --md-sys-color-surface-bright: rgb(54 59 47);
+    --md-sys-color-surface-container-lowest: rgb(11 15 7);
+    --md-sys-color-surface-container-low: rgb(25 29 19);
+    --md-sys-color-surface-container: rgb(29 33 23);
+    --md-sys-color-surface-container-high: rgb(39 43 33);
+    --md-sys-color-surface-container-highest: rgb(50 54 43);
+    --surface: #11150b;
+    --surface-low: #191d13;
+    --surface-high: #272b21;
+    --surface-white: #1d2117;
+    --surface-dark: #272b21;
+    --ink: #e0e4d4;
+    --muted: #c2cab2;
+    --line: #424937;
+    --primary: #97d945;
+    --primary-deep: #a3c37b;
+    --primary-contrast: #1f3700;
+    --accent: #97d945;
+    --accent-soft: #365016;
+    --mint: #365016;
+    --lavender: #424937;
+    --danger: #ffb4ab;
 }
 * {
     box-sizing: border-box;
@@ -189,23 +258,6 @@ textarea:focus-visible {
     gap: 9px;
     margin-top: auto;
 }
-.rail-school {
-    width: 37px;
-    height: 37px;
-    display: grid;
-    place-items: center;
-    border-radius: 50% 50% 50% 9px;
-    background: var(--surface-high);
-    color: var(--primary);
-    font-size: 10px;
-    font-weight: 700;
-}
-.rail-role {
-    color: #758065;
-    font-size: 7px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-}
 .app-content {
     width: min(1280px, 100%);
     margin-inline: auto;
@@ -223,7 +275,7 @@ textarea:focus-visible {
 }
 .overline {
     margin: 0 0 8px;
-    color: #78816d;
+    color: var(--muted);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -267,7 +319,7 @@ textarea:focus-visible {
 }
 .account-chip {
     background: var(--surface-low);
-    color: #413863;
+    color: var(--primary-deep);
 }
 .account-chip .material-symbols-rounded {
     font-size: 18px;
@@ -281,7 +333,7 @@ textarea:focus-visible {
     gap: 10px;
     border-radius: 13px 13px 13px 4px;
     background: var(--surface-low);
-    color: #535c48;
+    color: var(--muted);
     font-size: 11px;
 }
 .preview-notice .material-symbols-rounded {
@@ -547,7 +599,7 @@ textarea:focus-visible {
     font-size: 17px;
 }
 .project-date {
-    color: #818975;
+    color: var(--muted);
     font-size: 9px;
 }
 .project-card h3 {
@@ -858,10 +910,10 @@ textarea:focus-visible {
 }
 .form-field input::placeholder,
 .form-field textarea::placeholder {
-    color: #7c856f;
+    color: var(--muted);
 }
 .form-field small {
-    color: #737c68;
+    color: var(--muted);
     font-size: 10px;
 }
 .publish-note {
@@ -904,7 +956,7 @@ textarea:focus-visible {
     place-items: center;
     border-radius: 50% 50% 50% 10px;
     background: var(--mint);
-    color: #255c44;
+    color: var(--primary-deep);
 }
 .form-aside h2 {
     margin: 0 0 8px;
@@ -919,7 +971,7 @@ textarea:focus-visible {
 .aside-divider {
     height: 1px;
     margin: 18px 0;
-    background: #cbd3bb;
+    background: var(--line);
 }
 .form-aside .aside-caption {
     font-size: 10px;
@@ -946,7 +998,7 @@ textarea:focus-visible {
     place-items: center;
     border-radius: 50% 50% 50% 8px;
     background: var(--lavender);
-    color: #413863;
+    color: var(--primary-deep);
     font-weight: 600;
 }
 .account-details {
@@ -1018,7 +1070,7 @@ textarea:focus-visible {
 }
 .role-option.selected {
     background: var(--lavender);
-    color: #413863;
+    color: var(--primary-deep);
 }
 .role-option .material-symbols-rounded {
     font-size: 19px;
@@ -1080,7 +1132,7 @@ textarea:focus-visible {
     margin: 20px 0 0;
     display: flex;
     gap: 7px;
-    color: #737c68;
+    color: var(--muted);
     font-size: 9px;
 }
 .auth-disclaimer .material-symbols-rounded {
@@ -1094,7 +1146,7 @@ textarea:focus-visible {
     justify-content: center;
     border-radius: 22px 22px 22px 7px;
     background: var(--primary);
-    color: var(--surface-white);
+    color: var(--primary-contrast);
 }
 .auth-emblem {
     width: 52px;
@@ -1110,7 +1162,8 @@ textarea:focus-visible {
     font-size: 28px;
 }
 .auth-aside .overline {
-    color: #d3e4be;
+    color: var(--primary-contrast);
+    opacity: 0.82;
 }
 .auth-aside h2 {
     max-width: 320px;
@@ -1122,7 +1175,8 @@ textarea:focus-visible {
 .auth-aside > p:last-child {
     max-width: 320px;
     margin: 0;
-    color: #e2ecd7;
+    color: var(--primary-contrast);
+    opacity: 0.82;
     font-size: 12px;
 }
 .app-dialog {
@@ -1249,8 +1303,7 @@ textarea:focus-visible {
         flex-direction: row;
         background: var(--surface-low);
     }
-    .rail-brand,
-    .rail-bottom:not(.has-signout) {
+    .rail-brand {
         display: none;
     }
     .rail-links {
@@ -1265,19 +1318,18 @@ textarea:focus-visible {
         align-items: center;
         gap: 3px;
     }
-    .rail-bottom.has-signout {
-        width: 48px;
+    .rail-bottom {
+        width: auto;
         height: 100%;
-        flex: 0 0 48px;
+        flex: 0 0 auto;
         margin: 0;
-        gap: 0;
+        display: flex;
+        align-items: center;
+        gap: 2px;
     }
-    .rail-bottom.has-signout > .rail-school,
-    .rail-bottom.has-signout > .rail-role {
-        display: none;
-    }
-    .rail-bottom.has-signout .rail-signout {
-        width: 100%;
+    .rail-bottom .rail-theme-toggle,
+    .rail-bottom .rail-signout {
+        width: 48px;
         min-height: 58px;
         padding: 5px 1px;
     }
@@ -1521,7 +1573,7 @@ textarea:focus-visible {
 }
 md-filled-button.m3-filled {
     --md-filled-button-container-color: var(--primary);
-    --md-filled-button-label-text-color: var(--surface-white);
+    --md-filled-button-label-text-color: var(--primary-contrast);
 }
 md-filled-tonal-button.m3-tonal {
     --md-filled-tonal-button-container-color: var(--accent-soft);
@@ -1540,7 +1592,7 @@ md-text-button.m3-compact {
 }
 md-filled-button.m3-danger {
     --md-filled-button-container-color: var(--danger);
-    --md-filled-button-label-text-color: white;
+    --md-filled-button-label-text-color: var(--primary-contrast);
 }
 md-icon-button.m3-icon-button {
     --md-icon-button-icon-color: var(--primary);

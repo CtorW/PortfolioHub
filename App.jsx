@@ -24,18 +24,21 @@ import {
     Send,
     Settings2,
     ShieldCheck,
+    Moon,
+    Sun,
     Trash2,
     UserRoundPlus,
     Users,
     X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const STORE = {
     projects: "portfolihub-preview-projects-v1",
     faculty: "portfolihub-preview-faculty-v1",
     session: "portfolihub-preview-session",
+    theme: "portfolihub-preview-theme-v1",
 };
 const DEMO_ACCOUNTS = [
     { email: "admin@admin.com", name: "Showcase Admin", role: "admin", status: "approved" },
@@ -174,7 +177,7 @@ function PageHeader({ title, subtitle, session }) {
     );
 }
 
-function NavRail({ session, view, navigate, signOut }) {
+function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
     const publicItems = [
         ["showcase", "Showcase", PanelsTopLeft],
         ["portal", "Portal", LogIn],
@@ -230,10 +233,20 @@ function NavRail({ session, view, navigate, signOut }) {
                 })}
             </nav>
             <div className={`rail-bottom ${session ? "has-signout" : ""}`}>
-                <span className="rail-school">SJC</span>
+                <button
+                    type="button"
+                    className="rail-link rail-theme-toggle"
+                    aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                    title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                    onClick={toggleTheme}
+                >
+                    <span className="rail-link-icon">
+                        {theme === "dark" ? <Sun className="rail-icon" size={22} /> : <Moon className="rail-icon" size={22} />}
+                    </span>
+                    <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+                </button>
                 {session ? (
                     <>
-                        <span className="rail-role">{session.role === "admin" ? "ADMIN" : "FACULTY"}</span>
                         <button
                             type="button"
                             className="rail-link rail-signout"
@@ -246,9 +259,7 @@ function NavRail({ session, view, navigate, signOut }) {
                             <span>Sign out</span>
                         </button>
                     </>
-                ) : (
-                    <span className="rail-role">PREVIEW</span>
-                )}
+                ) : null}
             </div>
         </aside>
     );
@@ -1134,11 +1145,24 @@ export default function App() {
     const [facultyAccounts, setFacultyAccounts] = useState(() => readStore(STORE.faculty, []));
     const [session, setSession] = useState(readSession);
     const [view, setView] = useState(() => (readSession() ? "overview" : "showcase"));
+    const [theme, setTheme] = useState(() => (readStore(STORE.theme, "light") === "dark" ? "dark" : "light"));
     const [authRole, setAuthRole] = useState("faculty");
     const [query, setQuery] = useState("");
     const [requestOpen, setRequestOpen] = useState(false);
     const [dialog, setDialog] = useState(null);
     const [toast, setToast] = useState("");
+
+    useLayoutEffect(() => {
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#11150b" : "#f7fbea");
+    }, [theme]);
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORE.theme, JSON.stringify(theme));
+        } catch {
+            // The selected theme remains active for this session.
+        }
+    }, [theme]);
 
     useEffect(() => {
         try {
@@ -1332,7 +1356,14 @@ export default function App() {
     const routeKey = `${session?.role || "public"}-${view}-${authRole}`;
     return (
         <div className="app-shell">
-            <NavRail session={session} view={view} navigate={navigate} signOut={signOut} />
+            <NavRail
+                session={session}
+                view={view}
+                navigate={navigate}
+                signOut={signOut}
+                theme={theme}
+                toggleTheme={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+            />
             <main className="app-main">
                 <AnimatePresence mode="wait" initial={false}>
                     <motion.div
