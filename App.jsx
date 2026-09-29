@@ -291,7 +291,12 @@ function ShowcaseFooter() {
                         <strong>PortfoliHub</strong>
                     </a>
                     <p>PHINMA Saint Jude College · BSIT Capstone Showcase</p>
-                    <a className="footer-school-link" href="https://sjc.phinma.edu.ph/" target="_blank" rel="noreferrer">
+                    <a
+                        className="footer-school-link"
+                        href="https://sjc.phinma.edu.ph/"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
                         School website
                     </a>
                 </div>
@@ -652,7 +657,9 @@ function UploadView({ session, publish }) {
                             required
                             placeholder="https://images.example.com/project-cover.jpg"
                         />
-                        <small>Paste a public image URL for the showcase preview. Accepts most direct image links.</small>
+                        <small>
+                            Paste a public image URL for the showcase preview. Accepts most direct image links.
+                        </small>
                     </label>
                     <label className="form-field">
                         <span>
@@ -1186,7 +1193,9 @@ export default function App() {
         setQuery("");
     }
     function requestAccess({ name, email }) {
-        const trimmedEmail = String(email || "").trim().toLowerCase();
+        const trimmedEmail = String(email || "")
+            .trim()
+            .toLowerCase();
         if (!isFacultyEmail(trimmedEmail)) {
             notify("Faculty email must use the .sjc@phinmaed.com format.");
             return;

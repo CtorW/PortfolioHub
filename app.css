@@ -1583,6 +1583,9 @@ md-icon-button.m3-icon-button {
 md-filled-button.m3-button,
 md-filled-tonal-button.m3-button,
 md-text-button.m3-button {
+    --md-filled-button-hover-container-elevation: 0;
+    --md-filled-tonal-button-hover-container-elevation: 0;
+    --md-text-button-hover-container-elevation: 0;
     --md-filled-button-hover-state-layer-color: var(--primary);
     --md-filled-button-hover-state-layer-opacity: 0.08;
     --md-filled-button-pressed-state-layer-color: var(--primary-deep);
@@ -1638,6 +1641,7 @@ md-icon-button.m3-icon-button {
         md-icon-button.m3-icon-button
     ):not(:disabled):hover {
     transform: scale(1.04);
+    box-shadow: none !important;
 }
 :is(
         button,
