@@ -1439,10 +1439,15 @@ textarea:focus-visible {
     padding-top: 17px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: 18px;
     color: var(--muted);
     font-size: 10px;
+}
+.footer-brand-block {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
 }
 .footer-brand {
     display: inline-flex;
@@ -1456,8 +1461,38 @@ textarea:focus-visible {
     height: 27px;
     font-size: 19px;
 }
-.showcase-footer-content p {
+.footer-brand-block p {
     margin: 0;
+    color: var(--muted);
+}
+.footer-school-link {
+    width: fit-content;
+    color: var(--primary);
+    font-weight: 600;
+}
+.footer-links {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+.footer-links strong {
+    margin-bottom: 3px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+}
+.footer-links a {
+    color: var(--primary);
+    transition: color 0.2s ease;
+}
+.footer-links a:hover,
+.footer-school-link:hover,
+.footer-top-link:hover {
+    color: var(--primary-deep);
 }
 .footer-top-link {
     display: inline-flex;
@@ -1466,6 +1501,7 @@ textarea:focus-visible {
     color: var(--primary);
     font-weight: 600;
 }
+
 .m3-button {
     --md-filled-button-container-shape: 9999px;
     --md-filled-button-container-height: 48px;

@@ -38,9 +38,13 @@ const STORE = {
     session: "portfolihub-preview-session",
 };
 const DEMO_ACCOUNTS = [
-    { email: "admin@portfolihub.demo", name: "Showcase Admin", role: "admin", status: "approved" },
-    { email: "faculty@portfolihub.demo", name: "Faculty Preview", role: "faculty", status: "approved" },
+    { email: "admin@admin.com", name: "Showcase Admin", role: "admin", status: "approved" },
+    { email: "preview.sjc@phinmaed.com", name: "Faculty Preview", role: "faculty", status: "approved" },
 ];
+
+function isFacultyEmail(value) {
+    return /^[a-z0-9._%+-]+\.sjc@phinmaed\.com$/i.test(String(value || "").trim());
+}
 
 function readStore(key, fallback) {
     try {
@@ -281,11 +285,31 @@ function ShowcaseFooter() {
         <footer className="showcase-footer">
             <div className="footer-wave" aria-hidden="true" />
             <div className="showcase-footer-content">
-                <a className="footer-brand" href="#showcase">
-                    <img className="brand-mark" src="/assets/logoapp.gif" alt="" />
-                    <strong>PortfoliHub</strong>
-                </a>
-                <p>PHINMA Saint Jude College · BSIT Capstone Showcase</p>
+                <div className="footer-brand-block">
+                    <a className="footer-brand" href="#showcase">
+                        <img className="brand-mark" src="/assets/logoapp.gif" alt="" />
+                        <strong>PortfoliHub</strong>
+                    </a>
+                    <p>PHINMA Saint Jude College · BSIT Capstone Showcase</p>
+                    <a className="footer-school-link" href="https://sjc.phinma.edu.ph/" target="_blank" rel="noreferrer">
+                        School website
+                    </a>
+                </div>
+                <div className="footer-links">
+                    <strong>Social</strong>
+                    <a href="https://github.com/" target="_blank" rel="noreferrer">
+                        GitHub
+                    </a>
+                    <a href="https://x.com/" target="_blank" rel="noreferrer">
+                        X
+                    </a>
+                    <a href="https://www.youtube.com/" target="_blank" rel="noreferrer">
+                        YouTube
+                    </a>
+                    <a href="https://sjc.phinma.edu.ph/feed/" target="_blank" rel="noreferrer">
+                        Blog RSS
+                    </a>
+                </div>
                 <a className="footer-top-link" href="#showcase">
                     Back to showcase <ArrowUpRight size={16} />
                 </a>
@@ -856,7 +880,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                                 onChange={event => setEmail(event.target.value)}
                                 required
                                 autoComplete="username"
-                                placeholder="name@phinma.edu.ph"
+                                placeholder="name.sjc@phinmaed.com"
                             />
                         </label>
                         <MaterialButton className="auth-submit" icon={ArrowRight} type="submit">
@@ -897,7 +921,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                                         <span>
                                             Institutional email <b>Required</b>
                                         </span>
-                                        <input name="email" type="email" required placeholder="name@phinma.edu.ph" />
+                                        <input name="email" type="email" required placeholder="name.sjc@phinmaed.com" />
                                     </label>
                                     <MaterialButton variant="tonal" icon={Send} type="submit">
                                         Send access request
@@ -1162,7 +1186,12 @@ export default function App() {
         setQuery("");
     }
     function requestAccess({ name, email }) {
-        if (accounts.some(item => item.email === email)) {
+        const trimmedEmail = String(email || "").trim().toLowerCase();
+        if (!isFacultyEmail(trimmedEmail)) {
+            notify("Faculty email must use the .sjc@phinmaed.com format.");
+            return;
+        }
+        if (accounts.some(item => item.email === trimmedEmail)) {
             notify("An account with this email already exists.");
             return;
         }
@@ -1170,7 +1199,7 @@ export default function App() {
             {
                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                 name,
-                email,
+                email: trimmedEmail,
                 role: "faculty",
                 status: "pending",
             },
