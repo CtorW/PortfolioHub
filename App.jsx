@@ -5,6 +5,7 @@ import {
     Bot,
     Check,
     CheckCircle2,
+    ChevronDown,
     CloudOff,
     ExternalLink,
     FileText,
@@ -317,7 +318,9 @@ function AssistantView({ session, projects }) {
     ]);
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
+    const [modelMenuOpen, setModelMenuOpen] = useState(false);
     const messagesRef = useRef(null);
+    const modelMenuRef = useRef(null);
 
     async function loadModels() {
         setConnection("checking");
@@ -338,6 +341,18 @@ function AssistantView({ session, projects }) {
 
     useEffect(() => {
         loadModels();
+    }, []);
+    useEffect(() => {
+        const menu = modelMenuRef.current;
+        if (!menu) return undefined;
+        const onOpened = () => setModelMenuOpen(true);
+        const onClosed = () => setModelMenuOpen(false);
+        menu.addEventListener("opened", onOpened);
+        menu.addEventListener("closed", onClosed);
+        return () => {
+            menu.removeEventListener("opened", onOpened);
+            menu.removeEventListener("closed", onClosed);
+        };
     }, []);
     useEffect(() => {
         messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
@@ -412,19 +427,45 @@ function AssistantView({ session, projects }) {
                     </span>
                     <div className="assistant-model-controls">
                         <label htmlFor="assistant-model">Model</label>
-                        <select
+                        <button
                             id="assistant-model"
-                            value={model}
+                            type="button"
+                            className="assistant-model-trigger"
+                            aria-haspopup="menu"
+                            aria-expanded={modelMenuOpen}
+                            aria-controls="assistant-model-menu"
                             disabled={!models.length}
-                            onChange={event => setModel(event.target.value)}
+                            onClick={() => modelMenuRef.current?.show()}
                         >
-                            {!models.length && <option value="">No model installed</option>}
+                            <span>{model || "No model installed"}</span>
+                            <ChevronDown size={16} aria-hidden="true" />
+                        </button>
+                        <md-menu
+                            id="assistant-model-menu"
+                            class="assistant-model-menu"
+                            ref={modelMenuRef}
+                            anchor="assistant-model"
+                            positioning="popover"
+                            anchor-corner="end-start"
+                            menu-corner="start-start"
+                        >
                             {models.map(item => (
-                                <option key={item.name} value={item.name}>
-                                    {item.name}
-                                </option>
+                                <md-menu-item
+                                    key={item.name}
+                                    type="button"
+                                    selected={item.name === model}
+                                    onClick={() => {
+                                        setModel(item.name);
+                                        modelMenuRef.current?.close();
+                                    }}
+                                >
+                                    <span slot="start">
+                                        {item.name === model && <Check size={17} aria-hidden="true" />}
+                                    </span>
+                                    <span slot="headline">{item.name}</span>
+                                </md-menu-item>
                             ))}
-                        </select>
+                        </md-menu>
                         <button type="button" className="assistant-retry" onClick={loadModels} aria-label="Retry Ollama connection" title="Retry Ollama connection">
                             <RefreshCw size={17} />
                         </button>
