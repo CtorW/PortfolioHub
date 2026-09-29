@@ -13,6 +13,7 @@ import {
     Info,
     LayoutDashboard,
     Lightbulb,
+    LogIn,
     LogOut,
     Mic,
     PanelsTopLeft,
@@ -155,11 +156,10 @@ function PageHeader({ title, subtitle, session }) {
     );
 }
 
-function NavRail({ session, view, authRole, navigate, signOut }) {
+function NavRail({ session, view, navigate, signOut }) {
     const publicItems = [
         ["showcase", "Showcase", PanelsTopLeft],
-        ["faculty-login", "Faculty", School],
-        ["admin-login", "Admin", ShieldCheck],
+        ["portal", "Portal", LogIn],
     ];
     const roleItems = session
         ? [
@@ -170,7 +170,7 @@ function NavRail({ session, view, authRole, navigate, signOut }) {
                         ["manage-projects", "Capstones", FolderOpen],
                         ["faculty", "Faculty", Users],
                     ]
-                  : [["my-projects", "Students Work", BookOpen]]),
+                  : [["my-projects", "Student Capstone", BookOpen]]),
               ["showcase", "Public", Globe2],
           ]
         : publicItems;
@@ -185,12 +185,12 @@ function NavRail({ session, view, authRole, navigate, signOut }) {
                     navigate("showcase");
                 }}
             >
-                <span className="brand-mark">p</span>
+                <img className="brand-mark" src="/assets/logoapp.png" alt="" />
                 <span className="brand-name">PortfoliHub</span>
             </a>
             <nav className="rail-links" aria-label="Workspace">
                 {roleItems.map(([destination, label, Icon]) => {
-                    const active = view === destination || (view === "login" && destination === `${authRole}-login`);
+                    const active = view === destination || (view === "login" && destination === "portal");
                     return (
                         <a
                             key={destination}
@@ -268,7 +268,7 @@ function ShowcaseFooter() {
             <div className="footer-wave" aria-hidden="true" />
             <div className="showcase-footer-content">
                 <a className="footer-brand" href="#showcase">
-                    <span className="brand-mark">p</span>
+                    <img className="brand-mark" src="/assets/logoapp.png" alt="" />
                     <strong>PortfoliHub</strong>
                 </a>
                 <p>PHINMA Saint Jude College · BSIT Capstone Showcase</p>
@@ -350,7 +350,17 @@ function ProjectCard({ project, canManage, index = 0, onEdit, onDelete }) {
     );
 }
 
-function ProjectGrid({ projects, query = "", session, canManage = false, onFacultyLogin, onEdit, onDelete }) {
+function ProjectGrid({
+    projects,
+    query = "",
+    session,
+    canManage = false,
+    onFacultyLogin,
+    onEdit,
+    onDelete,
+    emptyTitle = "No capstones published yet",
+    emptyMessage = "Approved faculty can publish student team projects directly to this showcase.",
+}) {
     const needle = query.trim().toLowerCase();
     const results = projects.filter(
         item => !needle || `${item.title} ${item.description} ${item.facultyName || ""}`.toLowerCase().includes(needle),
@@ -359,12 +369,8 @@ function ProjectGrid({ projects, query = "", session, canManage = false, onFacul
         return (
             <div className="empty-state">
                 <FolderOpen className="empty-icon" size={28} />
-                <h2>{query ? "No matching capstones" : "No capstones published yet"}</h2>
-                <p>
-                    {query
-                        ? "Try another title or keyword."
-                        : "Approved faculty can publish student team projects directly to this showcase."}
-                </p>
+                <h2>{query ? "No matching capstones" : emptyTitle}</h2>
+                <p>{query ? "Try another title or keyword." : emptyMessage}</p>
                 {!query && !session && (
                     <MaterialButton icon={ArrowRight} onClick={onFacultyLogin}>
                         Faculty sign in
@@ -478,10 +484,10 @@ function OverviewView({ session, projects, facultyAccounts, navigate }) {
                     detail="Visible on the public showcase"
                 />
                 <StatCard
-                    label={admin ? "Pending faculty" : "Your capstones"}
+                    label={admin ? "Pending faculty" : "Student capstones"}
                     value={admin ? pending.length : owned.length}
                     Icon={admin ? UserRoundPlus : BookOpen}
-                    detail={admin ? "Access requests awaiting review" : "Published from your account"}
+                    detail={admin ? "Access requests awaiting review" : "Published student work"}
                 />
                 <StatCard
                     label="Faculty accounts"
@@ -494,8 +500,8 @@ function OverviewView({ session, projects, facultyAccounts, navigate }) {
                 <article className="surface-panel">
                     <div className="panel-heading">
                         <div>
-                            <p className="overline">{admin ? "CONTENT" : "YOUR CONTENT"}</p>
-                            <h2>{admin ? "Recently published" : "Your latest capstones"}</h2>
+                            <p className="overline">{admin ? "CONTENT" : "STUDENT CAPSTONES"}</p>
+                            <h2>{admin ? "Recently published" : "Latest student capstones"}</h2>
                         </div>
                         <MaterialButton
                             variant="tonal"
@@ -521,7 +527,7 @@ function OverviewView({ session, projects, facultyAccounts, navigate }) {
                             ))}
                         </div>
                     ) : (
-                        <p className="inline-empty">No capstones here yet.</p>
+                        <p className="inline-empty">No student capstones here yet.</p>
                     )}
                 </article>
                 <article className="surface-panel action-panel">
@@ -668,16 +674,21 @@ function ManageProjectsView({ session, projects, query, setQuery, openDialog, on
     );
 }
 
-function MyProjectsView({ session, projects }) {
-    const mine = projects.filter(project => project.facultyEmail === session.email);
+function StudentCapstonesView({ session, projects }) {
+    const otherFacultyProjects = projects.filter(project => project.facultyEmail !== session.email);
     return (
         <>
             <PageHeader
-                title="My capstones"
-                subtitle="Projects published from your faculty account."
+                title="Student Capstones"
+                subtitle="Explore capstone projects published by other faculty."
                 session={session}
             />
-            <ProjectGrid projects={mine} session={session} />
+            <ProjectGrid
+                projects={otherFacultyProjects}
+                session={session}
+                emptyTitle="No student capstones yet"
+                emptyMessage="Capstones published by other faculty will appear here."
+            />
         </>
     );
 }
@@ -771,8 +782,8 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
     return (
         <>
             <PageHeader
-                title={role === "admin" ? "Admin sign in" : "Faculty sign in"}
-                subtitle="Choose your role to continue to the showcase workspace."
+                title="Portal sign in"
+                subtitle="Choose Faculty or Admin to continue to your workspace."
                 session={session}
             />
             <section className="auth-layout">
@@ -1080,7 +1091,7 @@ export default function App() {
     const accounts = [...DEMO_ACCOUNTS, ...facultyAccounts];
     const notify = message => setToast(message);
     function navigate(destination) {
-        if (destination === "faculty-login" || destination === "admin-login") {
+        if (destination === "portal" || destination === "faculty-login" || destination === "admin-login") {
             setAuthRole(destination === "admin-login" ? "admin" : "faculty");
             setView("login");
         } else setView(session ? destination : "showcase");
@@ -1204,7 +1215,7 @@ export default function App() {
         );
     else if (view === "upload") content = <UploadView session={session} publish={publish} />;
     else if (view === "my-projects" && session.role === "faculty")
-        content = <MyProjectsView session={session} projects={projects} />;
+        content = <StudentCapstonesView session={session} projects={projects} />;
     else if (view === "showcase")
         content = (
             <ShowcaseView
@@ -1224,7 +1235,7 @@ export default function App() {
     const routeKey = `${session?.role || "public"}-${view}-${authRole}`;
     return (
         <div className="app-shell">
-            <NavRail session={session} view={view} authRole={authRole} navigate={navigate} signOut={signOut} />
+            <NavRail session={session} view={view} navigate={navigate} signOut={signOut} />
             <main className="app-main">
                 <AnimatePresence mode="wait" initial={false}>
                     <motion.div
