@@ -68,6 +68,20 @@ function repositoryUrl(value) {
     }
 }
 
+function projectImage(value) {
+    if (!value) return null;
+    const text = String(value).trim();
+    if (!text) return null;
+    if (text.startsWith("data:image/")) return { url: text };
+    try {
+        const url = new URL(text);
+        if (["http:", "https:"].includes(url.protocol)) return { url: url.href };
+    } catch {
+        return null;
+    }
+    return null;
+}
+
 function projectVideo(value) {
     let url;
     try {
@@ -282,6 +296,7 @@ function ShowcaseFooter() {
 
 function ProjectCard({ project, canManage, index = 0, onEdit, onDelete }) {
     const repo = repositoryUrl(project.repositoryUrl);
+    const image = project.imageUrl ? projectImage(project.imageUrl) : null;
     const video = project.demoVideoUrl ? projectVideo(project.demoVideoUrl) : null;
     return (
         <motion.article
@@ -297,6 +312,15 @@ function ProjectCard({ project, canManage, index = 0, onEdit, onDelete }) {
                 <span className="project-date">{project.createdLabel || "Recently added"}</span>
             </div>
             <h3>{project.title}</h3>
+            {image && (
+                <img
+                    className="project-image"
+                    src={image.url}
+                    alt={`${project.title} showcase preview`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                />
+            )}
             <p className="project-description">{project.description}</p>
             {video && (
                 <div className="project-demo">
@@ -556,6 +580,7 @@ function UploadView({ session, publish }) {
         publish({
             title: String(data.get("title")).trim(),
             description: String(data.get("description")).trim(),
+            imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
             demoVideoUrl: String(data.get("demoVideoUrl")).trim(),
         });
@@ -592,6 +617,18 @@ function UploadView({ session, publish }) {
                             placeholder="Describe the problem, the solution, and what the student team built."
                         />
                         <small>Keep the summary clear for students, faculty, and recruiters.</small>
+                    </label>
+                    <label className="form-field">
+                        <span>
+                            Project image URL <b>Required</b>
+                        </span>
+                        <input
+                            name="imageUrl"
+                            type="url"
+                            required
+                            placeholder="https://images.example.com/project-cover.jpg"
+                        />
+                        <small>Paste a public image URL for the showcase preview. Accepts most direct image links.</small>
                     </label>
                     <label className="form-field">
                         <span>
@@ -899,6 +936,7 @@ function ProjectDialog({ dialog, close, save, remove }) {
         save(dialog.project.id, {
             title: String(data.get("title")).trim(),
             description: String(data.get("description")).trim(),
+            imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
             demoVideoUrl: String(data.get("demoVideoUrl")).trim(),
         });
@@ -945,6 +983,18 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                     maxLength="1600"
                                     defaultValue={dialog.project.description}
                                 />
+                            </label>
+                            <label className="form-field">
+                                <span>
+                                    Project image URL <b>Required</b>
+                                </span>
+                                <input
+                                    name="imageUrl"
+                                    type="url"
+                                    required
+                                    defaultValue={dialog.project.imageUrl || ""}
+                                />
+                                <small>Paste a public image URL for the showcase preview.</small>
                             </label>
                             <label className="form-field">
                                 <span>
@@ -1131,12 +1181,16 @@ export default function App() {
     function publish(data) {
         const repo = repositoryUrl(data.repositoryUrl);
         if (!repo) return notify("Enter a valid HTTP or HTTPS repository URL.");
+        const imageUrl = String(data.imageUrl || "").trim();
+        const image = imageUrl ? projectImage(imageUrl) : null;
+        if (imageUrl && !image) return notify("Enter a valid public image URL for the showcase preview.");
         const videoUrl = String(data.demoVideoUrl || "").trim();
         const video = videoUrl ? projectVideo(videoUrl) : null;
         if (videoUrl && !video)
             return notify("Enter a supported HTTPS YouTube, Vimeo, or direct MP4, WebM, or Ogg URL.");
         const project = {
             ...data,
+            imageUrl: image?.url || "",
             repositoryUrl: repo,
             demoVideoUrl: video?.url || "",
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -1153,13 +1207,18 @@ export default function App() {
     }
     function saveProject(id, changes) {
         if (!repositoryUrl(changes.repositoryUrl)) return notify("Enter a valid HTTP or HTTPS repository URL.");
+        const imageUrl = String(changes.imageUrl || "").trim();
+        const image = imageUrl ? projectImage(imageUrl) : null;
+        if (imageUrl && !image) return notify("Enter a valid public image URL for the showcase preview.");
         const videoUrl = String(changes.demoVideoUrl || "").trim();
         const video = videoUrl ? projectVideo(videoUrl) : null;
         if (videoUrl && !video)
             return notify("Enter a supported HTTPS YouTube, Vimeo, or direct MP4, WebM, or Ogg URL.");
         setProjects(items =>
             items.map(project =>
-                project.id === id ? { ...project, ...changes, demoVideoUrl: video?.url || "" } : project,
+                project.id === id
+                    ? { ...project, ...changes, imageUrl: image?.url || "", demoVideoUrl: video?.url || "" }
+                    : project,
             ),
         );
         setDialog(null);

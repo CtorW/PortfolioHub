@@ -556,6 +556,15 @@ textarea:focus-visible {
     font-weight: 500;
     line-height: 1.25;
 }
+.project-image {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin-top: 14px;
+    display: block;
+    object-fit: cover;
+    border-radius: 12px;
+    background: var(--surface-dark);
+}
 .project-description {
     min-height: 47px;
     margin: 0;
@@ -801,6 +810,14 @@ textarea:focus-visible {
     margin-bottom: 17px;
     display: grid;
     gap: 7px;
+    transform: scaleX(1);
+    transform-origin: center;
+    transition:
+        background 0.22s ease,
+        transform 0.28s cubic-bezier(0.2, 0.7, 0.25, 1);
+}
+.form-field:focus-within {
+    transform: scaleX(1.02);
 }
 .form-field > span {
     display: flex;
@@ -821,14 +838,22 @@ textarea:focus-visible {
     min-height: 46px;
     padding: 12px 13px;
     border: 0;
-    border-radius: 12px 12px 12px 4px;
+    border-radius: 9999px;
     outline-color: var(--primary);
     background: var(--surface-low);
     color: var(--ink);
     font-size: 12px;
+    transition:
+        background 0.22s ease,
+        transform 0.28s cubic-bezier(0.2, 0.7, 0.25, 1);
+}
+.form-field:focus-within input,
+.form-field:focus-within textarea {
+    background: var(--accent-soft);
 }
 .form-field textarea {
     min-height: 132px;
+    border-radius: 18px 18px 18px 18px;
     resize: vertical;
 }
 .form-field input::placeholder,
@@ -973,7 +998,7 @@ textarea:focus-visible {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 5px;
-    border-radius: 17px;
+    border-radius: 9999px;
     background: var(--surface-low);
 }
 .role-option {
@@ -1509,7 +1534,13 @@ md-icon-button.m3-icon-button {
     width: 100%;
     --md-filled-tonal-button-container-height: 44px;
     --md-filled-tonal-button-container-shape: 9999px;
+    --md-filled-tonal-button-hover-container-elevation: 0;
+    --md-filled-tonal-button-focus-container-elevation: 0;
+    --md-filled-tonal-button-pressed-container-elevation: 0;
     --md-text-button-container-height: 44px;
+    --md-text-button-hover-container-elevation: 0;
+    --md-text-button-focus-container-elevation: 0;
+    --md-text-button-pressed-container-elevation: 0;
     --md-filled-tonal-button-hover-state-layer-color: var(--primary);
     --md-text-button-hover-state-layer-color: var(--primary);
 }
@@ -1587,6 +1618,8 @@ md-icon-button.m3-icon-button {
     transition-timing-function: cubic-bezier(0.31, 0.94, 0.34, 1);
 }
 .role-switch [data-role="tab"][data-aria-selected]:not([data-aria-selected="false"]) {
+    --md-filled-tonal-button-label-text-color: var(--primary-deep);
+    --md-text-button-label-text-color: var(--primary);
     animation: role-selection-activation var(--motion-standard-default-spatial);
 }
 @keyframes role-selection-activation {
