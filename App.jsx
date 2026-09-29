@@ -504,9 +504,13 @@ function AssistantView({ session, projects }) {
                 </div>
                 <div className="assistant-messages" ref={messagesRef} aria-live="polite">
                     {messages.map((message, index) => (
-                        <article
+                        <motion.article
                             className={`assistant-message message-${message.role}`}
                             key={`${index}-${message.role}`}
+                            initial={{ opacity: 0, scale: 0.86 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            style={{ transformOrigin: message.role === "user" ? "right center" : "left center" }}
                         >
                             <span className="assistant-message-icon">
                                 {message.role === "assistant" ? <Bot size={17} /> : <Users size={17} />}
@@ -515,7 +519,7 @@ function AssistantView({ session, projects }) {
                                 <strong>{message.role === "assistant" ? "Assistant" : "You"}</strong>
                                 <p>{message.content}</p>
                             </div>
-                        </article>
+                        </motion.article>
                     ))}
                     {sending && (
                         <div className="assistant-thinking" role="status">

@@ -706,6 +706,7 @@ md-menu.assistant-model-menu {
 }
 .assistant-message {
     max-width: 86%;
+    width: fit-content;
     display: grid;
     grid-template-columns: 30px minmax(0, 1fr);
     align-items: start;
@@ -725,23 +726,24 @@ md-menu.assistant-model-menu {
 }
 .assistant-message > div {
     min-width: 0;
+    padding: 11px 16px;
+    border-radius: 9999px;
+    background: var(--surface-low);
 }
 .assistant-message strong {
     color: var(--muted);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
 }
 .assistant-message p {
     margin: 3px 0 0;
     color: var(--ink);
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.55;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 .assistant-message.message-user > div {
-    padding: 9px 13px;
-    border-radius: 15px 15px 15px 5px;
     background: var(--accent-soft);
 }
 .assistant-thinking {
