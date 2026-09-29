@@ -2,6 +2,7 @@ import {
     ArrowRight,
     ArrowUpRight,
     BookOpen,
+    Bot,
     Check,
     CheckCircle2,
     CloudOff,
@@ -19,6 +20,7 @@ import {
     PanelsTopLeft,
     Pencil,
     Plus,
+    RefreshCw,
     School,
     Search,
     Send,
@@ -40,6 +42,17 @@ const STORE = {
     session: "portfolihub-preview-session",
     theme: "portfolihub-preview-theme-v1",
 };
+const OLLAMA_BASE_URL = "http://localhost:11434";
+const ASSISTANT_SYSTEM_PROMPT = `You are the PortfoliHub assistant for the PHINMA Saint Jude College BSIT capstone showcase.
+Answer concise questions about this application's workflow using only these facts:
+- This is a local preview. Authentication and records use browser storage; Firebase is not connected.
+- Faculty access requests require an address ending in .sjc@phinmaed.com.
+- An admin reviews and approves faculty access requests in the Faculty accounts view.
+- Approved faculty can publish a capstone by providing a title, description, public image URL, and repository URL. A demo video is optional.
+- Publishing a capstone makes it public immediately. The app currently has no draft or pending-capstone approval state.
+- Admins can edit or delete published capstones.
+- Pending and approved refer to faculty access accounts, not student capstones.
+If a question requires data not provided here, say what is unknown. Never invent project statuses.`;
 const DEMO_ACCOUNTS = [
     { email: "admin@admin.com", name: "Showcase Admin", role: "admin", status: "approved" },
     { email: "preview.sjc@phinmaed.com", name: "Faculty Preview", role: "faculty", status: "approved" },
@@ -181,6 +194,7 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
     const publicItems = [
         ["showcase", "Showcase", PanelsTopLeft],
         ["portal", "Portal", LogIn],
+        ["assistant", "Ask Assistant", Bot],
     ];
     const roleItems = session
         ? [
@@ -193,6 +207,7 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
                     ]
                   : [["my-projects", "Student Capstone", BookOpen]]),
               ["showcase", "Public", Globe2],
+              ["assistant", "Ask Assistant", Bot],
           ]
         : publicItems;
     return (
@@ -262,6 +277,198 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
                 ) : null}
             </div>
         </aside>
+    );
+}
+
+function normalizeTitle(value) {
+    return String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+}
+
+function projectStatusAnswer(question, projects) {
+    const asksStatus =
+        /\bstatus\b|\bsubmission\b|\bsubmitted\b|\bprogress\b|\b(?:is|are|was|were|has|have|did|do)\b.{0,60}\b(?:published|pending|approved|submitted)\b/i.test(
+            question,
+        );
+    if (!asksStatus) return null;
+
+    const normalizedQuestion = normalizeTitle(question);
+    const matches = projects.filter(project => normalizedQuestion.includes(normalizeTitle(project.title)));
+    if (!matches.length) {
+        return "I couldn't find a published capstone matching that title in the available showcase records. In this preview, capstones publish immediately when faculty submit them; unpublished student submissions aren't tracked. Pending or approved status applies to faculty access requests, not capstones.";
+    }
+
+    return matches
+        .map(project => `${project.title}: ${project.status || "Published"}${project.createdLabel ? ` on ${project.createdLabel}` : ""}.`)
+        .join("\n");
+}
+
+function AssistantView({ session, projects }) {
+    const [models, setModels] = useState([]);
+    const [model, setModel] = useState("");
+    const [connection, setConnection] = useState("checking");
+    const [messages, setMessages] = useState([
+        {
+            role: "assistant",
+            content: "I can answer questions about the showcase workflow and check published capstone titles.",
+        },
+    ]);
+    const [draft, setDraft] = useState("");
+    const [sending, setSending] = useState(false);
+    const messagesRef = useRef(null);
+
+    async function loadModels() {
+        setConnection("checking");
+        try {
+            const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
+            if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
+            const data = await response.json();
+            const availableModels = Array.isArray(data.models) ? data.models : [];
+            setModels(availableModels);
+            setModel(current => (availableModels.some(item => item.name === current) ? current : availableModels[0]?.name || ""));
+            setConnection(availableModels.length ? "connected" : "no-models");
+        } catch {
+            setModels([]);
+            setModel("");
+            setConnection("offline");
+        }
+    }
+
+    useEffect(() => {
+        loadModels();
+    }, []);
+    useEffect(() => {
+        messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
+    }, [messages, sending]);
+
+    async function submit(event) {
+        event.preventDefault();
+        const question = draft.trim();
+        if (!question || sending) return;
+
+        const userMessage = { role: "user", content: question };
+        setMessages(current => [...current, userMessage]);
+        setDraft("");
+
+        const statusAnswer = projectStatusAnswer(question, projects);
+        if (statusAnswer) {
+            setMessages(current => [...current, { role: "assistant", content: statusAnswer }]);
+            return;
+        }
+        if (!model) {
+            const message =
+                connection === "no-models"
+                    ? "Ollama is reachable, but no models are installed. Run `ollama pull llama3.2`, then retry the connection."
+                    : "I can't reach Ollama at localhost:11434. Start Ollama, then retry the connection.";
+            setMessages(current => [...current, { role: "assistant", content: message }]);
+            return;
+        }
+
+        setSending(true);
+        try {
+            const history = [...messages, userMessage].slice(-8).map(({ role, content }) => ({ role, content }));
+            const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model,
+                    stream: false,
+                    messages: [{ role: "system", content: ASSISTANT_SYSTEM_PROMPT }, ...history],
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || `Ollama returned ${response.status}.`);
+            const answer = data.message?.content?.trim();
+            if (!answer) throw new Error("The selected model returned an empty response.");
+            setMessages(current => [...current, { role: "assistant", content: answer }]);
+        } catch (error) {
+            setMessages(current => [...current, { role: "assistant", content: `Ollama request failed: ${error.message}` }]);
+        } finally {
+            setSending(false);
+        }
+    }
+
+    const connectionLabel = {
+        checking: "Checking Ollama",
+        connected: "Ollama connected",
+        "no-models": "No local models",
+        offline: "Ollama unavailable",
+    }[connection];
+
+    return (
+        <>
+            <PageHeader
+                title="Ask Assistant"
+                subtitle="Get help with the showcase workflow or check a published capstone."
+                session={session}
+            />
+            <section className="assistant-panel surface-panel" aria-label="Ask Assistant">
+                <div className="assistant-toolbar">
+                    <span className={`assistant-connection connection-${connection}`} role="status">
+                        <span className="connection-dot" />
+                        {connectionLabel}
+                    </span>
+                    <div className="assistant-model-controls">
+                        <label htmlFor="assistant-model">Model</label>
+                        <select
+                            id="assistant-model"
+                            value={model}
+                            disabled={!models.length}
+                            onChange={event => setModel(event.target.value)}
+                        >
+                            {!models.length && <option value="">No model installed</option>}
+                            {models.map(item => (
+                                <option key={item.name} value={item.name}>
+                                    {item.name}
+                                </option>
+                            ))}
+                        </select>
+                        <button type="button" className="assistant-retry" onClick={loadModels} aria-label="Retry Ollama connection" title="Retry Ollama connection">
+                            <RefreshCw size={17} />
+                        </button>
+                    </div>
+                </div>
+                <div className="assistant-messages" ref={messagesRef} aria-live="polite">
+                    {messages.map((message, index) => (
+                        <article className={`assistant-message message-${message.role}`} key={`${index}-${message.role}`}>
+                            <span className="assistant-message-icon">
+                                {message.role === "assistant" ? <Bot size={17} /> : <Users size={17} />}
+                            </span>
+                            <div>
+                                <strong>{message.role === "assistant" ? "Assistant" : "You"}</strong>
+                                <p>{message.content}</p>
+                            </div>
+                        </article>
+                    ))}
+                    {sending && (
+                        <div className="assistant-thinking" role="status">
+                            <span className="connection-dot" /> Thinking with {model}...
+                        </div>
+                    )}
+                </div>
+                <form className="assistant-compose" onSubmit={submit}>
+                    <label className="sr-only" htmlFor="assistant-question">
+                        Ask a question
+                    </label>
+                    <input
+                        id="assistant-question"
+                        value={draft}
+                        onChange={event => setDraft(event.target.value)}
+                        placeholder="Ask about the workflow or a capstone title"
+                        autoComplete="off"
+                    />
+                    <MaterialButton icon={Send} type="submit" disabled={!draft.trim() || sending}>
+                        Ask
+                    </MaterialButton>
+                </form>
+                {connection === "no-models" && (
+                    <p className="assistant-setup-note">Ollama is running. Install a model, then retry: <code>ollama pull llama3.2</code></p>
+                )}
+                {connection === "offline" && <p className="assistant-setup-note">Start Ollama at localhost:11434, then retry the connection.</p>}
+            </section>
+        </>
     );
 }
 
@@ -1199,7 +1406,7 @@ export default function App() {
         if (destination === "portal" || destination === "faculty-login" || destination === "admin-login") {
             setAuthRole(destination === "admin-login" ? "admin" : "faculty");
             setView("login");
-        } else setView(session ? destination : "showcase");
+        } else setView(session || destination === "assistant" ? destination : "showcase");
         setQuery("");
     }
     function signOut() {
@@ -1299,7 +1506,8 @@ export default function App() {
     }
 
     let content;
-    if (!session)
+    if (view === "assistant") content = <AssistantView session={session} projects={projects} />;
+    else if (!session)
         content =
             view === "login" ? (
                 <LoginView
