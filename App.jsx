@@ -185,7 +185,7 @@ function NavRail({ session, view, navigate, signOut }) {
                     navigate("showcase");
                 }}
             >
-                <img className="brand-mark" src="/assets/logoapp.png" alt="" />
+                <img className="brand-mark" src="/assets/logoapp.gif" alt="" />
                 <span className="brand-name">PortfoliHub</span>
             </a>
             <nav className="rail-links" aria-label="Workspace">
@@ -268,7 +268,7 @@ function ShowcaseFooter() {
             <div className="footer-wave" aria-hidden="true" />
             <div className="showcase-footer-content">
                 <a className="footer-brand" href="#showcase">
-                    <img className="brand-mark" src="/assets/logoapp.png" alt="" />
+                    <img className="brand-mark" src="/assets/logoapp.gif" alt="" />
                     <strong>PortfoliHub</strong>
                 </a>
                 <p>PHINMA Saint Jude College · BSIT Capstone Showcase</p>
