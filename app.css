@@ -732,7 +732,7 @@ md-menu.assistant-model-menu {
     max-width: 100%;
     flex: 0 1 auto;
     padding: 11px 16px;
-    border-radius: 18px 18px 18px 7px;
+    border-radius: 18px 18px 18px 18px;
     background: var(--surface-low);
 }
 .assistant-message strong {
