@@ -1247,6 +1247,21 @@ md-menu.assistant-model-menu {
     color: var(--muted);
     font-size: 10px;
 }
+.account-details small {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    overflow-wrap: anywhere;
+}
+.deletion-history {
+    margin-top: 14px;
+}
+.account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: end;
+    gap: 6px;
+}
 .status-pill {
     padding: 5px 9px;
     border-radius: 999px;
@@ -1260,6 +1275,10 @@ md-menu.assistant-model-menu {
 .status-approved {
     background: var(--accent-soft);
     color: var(--primary-deep);
+}
+.status-rejected {
+    background: #f4e1dc;
+    color: var(--danger);
 }
 .auth-layout {
     max-width: 900px;
@@ -1687,9 +1706,9 @@ md-menu.assistant-model-menu {
         gap: 8px;
         padding: 10px 0;
     }
-    .account-row .button {
+    .account-actions {
         grid-column: 2 / 4;
-        justify-self: start;
+        justify-content: start;
     }
     .status-pill {
         grid-column: 3;

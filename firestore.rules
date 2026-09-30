@@ -1,0 +1,143 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminPath(uid) {
+      return /databases/$(database)/documents/admin/$(uid);
+    }
+
+    function facultyPath(uid) {
+      return /databases/$(database)/documents/faculty/$(uid);
+    }
+
+    function projectPath(projectId) {
+      return /databases/$(database)/documents/projects/$(projectId);
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(adminPath(request.auth.uid))
+        && get(adminPath(request.auth.uid)).data.role == 'admin'
+        && get(adminPath(request.auth.uid)).data.status == 'approved';
+    }
+
+    function isApprovedFaculty() {
+      return signedIn()
+        && exists(facultyPath(request.auth.uid))
+        && get(facultyPath(request.auth.uid)).data.role == 'faculty'
+        && get(facultyPath(request.auth.uid)).data.status == 'approved';
+    }
+
+    match /admin/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if false;
+    }
+
+    match /faculty/{uid} {
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['name', 'email', 'role', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'status', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'faculty'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt is timestamp;
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status in ['pending', 'approved', 'rejected'];
+      allow delete: if false;
+    }
+
+    match /projects/{projectId} {
+      allow read: if true;
+      allow create: if (isAdmin() || (
+          isApprovedFaculty()
+          && request.resource.data.facultyUid == request.auth.uid
+          && request.resource.data.facultyEmail == request.auth.token.email
+        ))
+        && request.resource.data.keys().hasAll([
+          'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
+          'facultyUid', 'facultyEmail', 'facultyName', 'createdAt', 'createdLabel'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
+          'facultyUid', 'facultyEmail', 'facultyName', 'createdAt', 'createdLabel'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 1600
+        && request.resource.data.imageUrl is string
+        && request.resource.data.repositoryUrl is string
+        && request.resource.data.demoVideoUrl is string
+        && request.resource.data.facultyUid is string
+        && request.resource.data.facultyEmail is string
+        && request.resource.data.facultyName is string
+        && request.resource.data.createdAt is timestamp;
+      allow update, delete: if isAdmin();
+    }
+
+    match /deletionRequests/{requestId} {
+      allow create: if isApprovedFaculty()
+        && request.resource.data.keys().hasAll([
+          'projectId', 'projectTitle', 'facultyUid', 'facultyEmail', 'facultyName',
+          'requestedByUid', 'status', 'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'projectId', 'projectTitle', 'facultyUid', 'facultyEmail', 'facultyName',
+          'requestedByUid', 'status', 'createdAt'
+        ])
+        && request.resource.data.requestedByUid == request.auth.uid
+        && request.resource.data.facultyUid == request.auth.uid
+        && request.resource.data.facultyEmail == request.auth.token.email
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt is timestamp
+        && exists(projectPath(request.resource.data.projectId))
+        && get(projectPath(request.resource.data.projectId)).data.facultyUid == request.auth.uid;
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.requestedByUid == request.auth.uid);
+      allow update: if isAdmin()
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'resolvedByUid', 'resolvedAt'])
+        && request.resource.data.resolvedByUid == request.auth.uid
+        && request.resource.data.resolvedAt is timestamp
+        && request.resource.data.status in ['deleted', 'rejected']
+        && (request.resource.data.status != 'deleted' || !exists(projectPath(resource.data.projectId)));
+      allow delete: if false;
+    }
+
+    match /accountDeletionRequests/{requestId} {
+      allow create: if isApprovedFaculty()
+        && request.resource.data.keys().hasAll([
+          'facultyUid', 'facultyEmail', 'facultyName', 'status', 'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'facultyUid', 'facultyEmail', 'facultyName', 'status', 'createdAt'
+        ])
+        && request.resource.data.facultyUid == request.auth.uid
+        && request.resource.data.facultyEmail == request.auth.token.email
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt is timestamp;
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.facultyUid == request.auth.uid);
+      allow update: if isAdmin()
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'resolvedByUid', 'resolvedAt'])
+        && request.resource.data.resolvedByUid == request.auth.uid
+        && request.resource.data.resolvedAt is timestamp
+        && request.resource.data.status in ['deleted', 'rejected']
+        && (request.resource.data.status != 'deleted' || !exists(facultyPath(resource.data.facultyUid)));
+      allow delete: if false;
+    }
+  }
+}

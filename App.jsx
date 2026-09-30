@@ -5,7 +5,7 @@ import {
     Check,
     CheckCircle2,
     ChevronDown,
-    CloudOff,
+    Cloud,
     ExternalLink,
     FileText,
     FolderOpen,
@@ -35,17 +35,38 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+    createUserWithEmailAndPassword,
+    deleteUser,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    signOut as firebaseSignOut,
+} from "firebase/auth";
+import {
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    onSnapshot,
+    query,
+    serverTimestamp,
+    setDoc,
+    updateDoc,
+    where,
+} from "firebase/firestore";
+import { auth, db, firebaseReady } from "./firebase";
 
-const STORE = {
-    projects: "portfolihub-preview-projects-v1",
-    faculty: "portfolihub-preview-faculty-v1",
-    session: "portfolihub-preview-session",
-    theme: "portfolihub-preview-theme-v1",
-};
-const OLLAMA_BASE_URL = "http://localhost:11434";
+const OLLAMA_BASE_URL = String(import.meta.env.VITE_OLLAMA_BASE_URL || "").trim().replace(/\/+$/, "");
+function ollamaBaseUrl() {
+    if (OLLAMA_BASE_URL) return OLLAMA_BASE_URL;
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+    return `${protocol}//${window.location.hostname}:11434`;
+}
 const ASSISTANT_SYSTEM_PROMPT = `You are the PortfoliHub assistant for the PHINMA Saint Jude College BSIT capstone showcase.
 Answer concise questions about this application's workflow using only these facts:
-- This is a local preview. Authentication and records use browser storage; Firebase is not connected.
+- Firebase Authentication handles sign-in and faculty registration. Firestore stores user profiles and capstones.
 - Faculty access requests require an address ending in .sjc@phinmaed.com.
 - An admin reviews and approves faculty access requests in the Faculty accounts view.
 - Approved faculty can publish a capstone by providing a title, description, public image URL, and repository URL. A demo video is optional.
@@ -53,29 +74,25 @@ Answer concise questions about this application's workflow using only these fact
 - Admins can edit or delete published capstones.
 - Pending and approved refer to faculty access accounts, not student capstones.
 If a question requires data not provided here, say what is unknown. Never invent project statuses.`;
-const DEMO_ACCOUNTS = [
-    { email: "admin@admin.com", name: "Showcase Admin", role: "admin", status: "approved" },
-    { email: "preview.sjc@phinmaed.com", name: "Faculty Preview", role: "faculty", status: "approved" },
-];
 
 function isFacultyEmail(value) {
     return /^[a-z0-9._%+-]+\.sjc@phinmaed\.com$/i.test(String(value || "").trim());
 }
 
-function readStore(key, fallback) {
-    try {
-        const value = localStorage.getItem(key);
-        return value ? JSON.parse(value) : fallback;
-    } catch {
-        return fallback;
-    }
+async function loadUserProfile(uid) {
+    const adminSnapshot = await getDoc(doc(db, "admin", uid));
+    if (adminSnapshot.exists()) return { uid, ...adminSnapshot.data(), role: "admin" };
+
+    const facultySnapshot = await getDoc(doc(db, "faculty", uid));
+    if (facultySnapshot.exists()) return { uid, ...facultySnapshot.data(), role: "faculty" };
+    return null;
 }
 
-function readSession() {
+function readTheme() {
     try {
-        return JSON.parse(sessionStorage.getItem(STORE.session) || "null");
+        return localStorage.getItem("portfolihub-theme") === "dark" ? "dark" : "light";
     } catch {
-        return null;
+        return "light";
     }
 }
 
@@ -183,7 +200,7 @@ function PageHeader({ title, subtitle, session }) {
                 </div>
                 <div className="header-actions">
                     <span className="firebase-status">
-                        <CloudOff size={17} /> Firebase setup postponed
+                        <Cloud size={17} /> {firebaseReady ? "Firebase configured" : "Firebase not configured"}
                     </span>
                     {session && (
                         <span className="account-chip">
@@ -193,13 +210,6 @@ function PageHeader({ title, subtitle, session }) {
                     )}
                 </div>
             </header>
-            <div className="preview-notice">
-                <Info size={18} />
-                <span>
-                    Preview mode. Sign-in and records are simulated in this browser; Firebase Authentication and
-                    Firestore are not connected.
-                </span>
-            </div>
         </>
     );
 }
@@ -315,7 +325,7 @@ function projectStatusAnswer(question, projects) {
     const normalizedQuestion = normalizeTitle(question);
     const matches = projects.filter(project => normalizedQuestion.includes(normalizeTitle(project.title)));
     if (!matches.length) {
-        return "I couldn't find a published capstone matching that title in the available showcase records. In this preview, capstones publish immediately when faculty submit them; unpublished student submissions aren't tracked. Pending or approved status applies to faculty access requests, not capstones.";
+        return "I couldn't find a published capstone matching that title in the available showcase records. Capstones publish immediately when faculty submit them; unpublished student submissions aren't tracked. Pending or approved status applies to faculty access requests, not capstones.";
     }
 
     return matches
@@ -327,6 +337,7 @@ function projectStatusAnswer(question, projects) {
 }
 
 function AssistantView({ session, projects }) {
+    const ollamaUrl = ollamaBaseUrl();
     const [models, setModels] = useState([]);
     const [model, setModel] = useState("");
     const [connection, setConnection] = useState("checking");
@@ -345,7 +356,7 @@ function AssistantView({ session, projects }) {
     async function loadModels() {
         setConnection("checking");
         try {
-            const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
+            const response = await fetch(`${ollamaUrl}/api/tags`);
             if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
             const data = await response.json();
             const availableModels = Array.isArray(data.models) ? data.models : [];
@@ -398,7 +409,7 @@ function AssistantView({ session, projects }) {
             const message =
                 connection === "no-models"
                     ? "Ollama is reachable, but no models are installed. Run `ollama pull llama3.2`, then retry the connection."
-                    : "I can't reach Ollama at localhost:11434. Start Ollama, then retry the connection.";
+                    : `I can't reach Ollama at ${ollamaUrl}. Confirm the server is running and accepts connections from this device.`;
             setMessages(current => [...current, { role: "assistant", content: message }]);
             return;
         }
@@ -406,7 +417,7 @@ function AssistantView({ session, projects }) {
         setSending(true);
         try {
             const history = [...messages, userMessage].slice(-8).map(({ role, content }) => ({ role, content }));
-            const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+            const response = await fetch(`${ollamaUrl}/api/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -548,7 +559,11 @@ function AssistantView({ session, projects }) {
                     </p>
                 )}
                 {connection === "offline" && (
-                    <p className="assistant-setup-note">Start Ollama at localhost:11434, then retry the connection.</p>
+                    <p className="assistant-setup-note">
+                        Ollama unavailable at <code>{ollamaUrl}</code>. On its host, bind Ollama to the network and allow
+                        this app's origin <code>{window.location.origin}</code> in <code>OLLAMA_ORIGINS</code>.
+                        Set <code>OLLAMA_HOST=0.0.0.0:11434</code> and restart Ollama.
+                    </p>
                 )}
             </section>
         </>
@@ -624,7 +639,7 @@ function ShowcaseFooter() {
     );
 }
 
-function ProjectCard({ project, canManage, index = 0, onEdit, onDelete }) {
+function ProjectCard({ project, canManage, canRequestDelete, index = 0, onEdit, onDelete, onRequestDelete }) {
     const repo = repositoryUrl(project.repositoryUrl);
     const image = project.imageUrl ? projectImage(project.imageUrl) : null;
     const video = project.demoVideoUrl ? projectVideo(project.demoVideoUrl) : null;
@@ -646,7 +661,7 @@ function ProjectCard({ project, canManage, index = 0, onEdit, onDelete }) {
                 <img
                     className="project-image"
                     src={image.url}
-                    alt={`${project.title} showcase preview`}
+                    alt={`${project.title} cover image`}
                     loading="lazy"
                     referrerPolicy="no-referrer"
                 />
@@ -700,6 +715,18 @@ function ProjectCard({ project, canManage, index = 0, onEdit, onDelete }) {
                     </MaterialButton>
                 </div>
             )}
+            {canRequestDelete && (
+                <div className="project-admin-actions">
+                    <MaterialButton
+                        variant="tonal"
+                        className="m3-compact m3-delete"
+                        icon={Trash2}
+                        onClick={() => onRequestDelete(project)}
+                    >
+                        Request deletion
+                    </MaterialButton>
+                </div>
+            )}
         </motion.article>
     );
 }
@@ -709,9 +736,11 @@ function ProjectGrid({
     query = "",
     session,
     canManage = false,
+    canRequestDelete = false,
     onFacultyLogin,
     onEdit,
     onDelete,
+    onRequestDelete,
     emptyTitle = "No capstones published yet",
     emptyMessage = "Approved faculty can publish student team projects directly to this showcase.",
 }) {
@@ -740,8 +769,10 @@ function ProjectGrid({
                     project={project}
                     index={index}
                     canManage={canManage}
+                    canRequestDelete={canRequestDelete}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onRequestDelete={onRequestDelete}
                 />
             ))}
         </div>
@@ -845,7 +876,7 @@ function OverviewView({ session, projects, facultyAccounts, navigate }) {
                 />
                 <StatCard
                     label="Faculty accounts"
-                    value={DEMO_ACCOUNTS.filter(item => item.role === "faculty").length + facultyAccounts.length}
+                    value={facultyAccounts.length}
                     Icon={Users}
                     detail={admin ? "Approved and pending" : "Showcase contributors"}
                 />
@@ -959,7 +990,7 @@ function UploadView({ session, publish }) {
                             placeholder="https://images.example.com/project-cover.jpg"
                         />
                         <small>
-                            Paste a public image URL for the showcase preview. Accepts most direct image links.
+                            Paste a public image URL for the showcase cover. Accepts most direct image links.
                         </small>
                     </label>
                     <label className="form-field">
@@ -1043,50 +1074,122 @@ function ManageProjectsView({ session, projects, query, setQuery, openDialog, on
     );
 }
 
-function StudentCapstonesView({ session, projects }) {
+function StudentCapstonesView({ session, projects, requestDeletion, requestAccountDeletion }) {
+    const ownProjects = projects.filter(
+        project => project.facultyUid === session.uid || project.facultyEmail === session.email,
+    );
     const otherFacultyProjects = projects.filter(project => project.facultyEmail !== session.email);
     return (
         <>
             <PageHeader
                 title="Student Capstones"
-                subtitle="Explore capstone projects published by other faculty."
+                subtitle="Manage your published capstones and browse other faculty projects."
                 session={session}
             />
-            <ProjectGrid
-                projects={otherFacultyProjects}
-                session={session}
-                emptyTitle="No student capstones yet"
-                emptyMessage="Capstones published by other faculty will appear here."
-            />
+            <section className="showcase-section">
+                <div className="section-toolbar">
+                    <div>
+                        <p className="overline">YOUR PUBLISHED WORK</p>
+                        <h2>My capstones</h2>
+                    </div>
+                    <MaterialButton
+                        variant="tonal"
+                        className="m3-compact m3-delete"
+                        icon={Trash2}
+                        onClick={requestAccountDeletion}
+                    >
+                        Request account removal
+                    </MaterialButton>
+                </div>
+                <ProjectGrid
+                    projects={ownProjects}
+                    session={session}
+                    canRequestDelete
+                    onRequestDelete={requestDeletion}
+                    emptyTitle="You haven't published a capstone yet"
+                    emptyMessage="Published capstones you own will appear here."
+                />
+            </section>
+            <section className="showcase-section">
+                <div className="section-toolbar">
+                    <div>
+                        <p className="overline">PUBLIC DIRECTORY</p>
+                        <h2>Other faculty projects</h2>
+                    </div>
+                </div>
+                <ProjectGrid
+                    projects={otherFacultyProjects}
+                    session={session}
+                    emptyTitle="No other capstones yet"
+                    emptyMessage="Capstones published by other faculty will appear here."
+                />
+            </section>
         </>
     );
 }
 
-function FacultyAccountsView({ session, facultyAccounts, approve }) {
+function FacultyAccountsView({
+    session,
+    facultyAccounts,
+    projectDeletionRequests,
+    accountDeletionRequests,
+    approve,
+    deny,
+    removeRejected,
+    resolveProjectDeletion,
+    resolveAccountDeletion,
+}) {
     const pending = facultyAccounts.filter(account => account.status === "pending");
     const active = facultyAccounts.filter(account => account.status === "approved");
-    const AccountRow = ({ account, isPending }) => (
+    const rejected = facultyAccounts.filter(account => account.status === "rejected");
+    const pendingProjectDeletions = projectDeletionRequests.filter(request => request.status === "pending");
+    const resolvedProjectDeletions = projectDeletionRequests.filter(request => request.status !== "pending");
+    const pendingAccountDeletions = accountDeletionRequests.filter(request => request.status === "pending");
+    const resolvedAccountDeletions = accountDeletionRequests.filter(request => request.status !== "pending");
+    const AccountRow = ({ account, status }) => (
         <article className="account-row">
             <span className="account-avatar">{(account.name || "F").slice(0, 1).toUpperCase()}</span>
             <div className="account-details">
                 <strong>{account.name}</strong>
                 <span>{account.email}</span>
             </div>
-            <span className={`status-pill ${isPending ? "status-pending" : "status-approved"}`}>
-                {isPending ? "Pending" : "Approved"}
+            <span className={`status-pill status-${status}`}>
+                {status === "pending" ? "Pending" : status === "approved" ? "Approved" : "Denied"}
             </span>
-            {isPending && (
-                <MaterialButton icon={Check} className="m3-compact" onClick={() => approve(account.id)}>
-                    Approve
-                </MaterialButton>
-            )}
+            <div className="account-actions">
+                {status === "pending" && (
+                    <>
+                        <MaterialButton icon={Check} className="m3-compact" onClick={() => approve(account.id)}>
+                            Approve
+                        </MaterialButton>
+                        <MaterialButton
+                            variant="tonal"
+                            icon={X}
+                            className="m3-compact m3-delete"
+                            onClick={() => deny(account.id)}
+                        >
+                            Deny
+                        </MaterialButton>
+                    </>
+                )}
+                {status === "rejected" && (
+                    <MaterialButton
+                        variant="tonal"
+                        icon={Trash2}
+                        className="m3-compact m3-delete"
+                        onClick={() => removeRejected(account)}
+                    >
+                        Delete blocked account
+                    </MaterialButton>
+                )}
+            </div>
         </article>
     );
     return (
         <>
             <PageHeader
                 title="Faculty accounts"
-                subtitle="Only admins can approve faculty access requests."
+                subtitle="Approve or deny faculty access requests."
                 session={session}
             />
             <div className="account-groups">
@@ -1102,7 +1205,7 @@ function FacultyAccountsView({ session, facultyAccounts, approve }) {
                     {pending.length ? (
                         <div className="account-list">
                             {pending.map(account => (
-                                <AccountRow key={account.id} account={account} isPending />
+                                <AccountRow key={account.id} account={account} status="pending" />
                             ))}
                         </div>
                     ) : (
@@ -1121,11 +1224,170 @@ function FacultyAccountsView({ session, facultyAccounts, approve }) {
                     {active.length ? (
                         <div className="account-list">
                             {active.map(account => (
-                                <AccountRow key={account.id} account={account} isPending={false} />
+                                <AccountRow key={account.id} account={account} status="approved" />
                             ))}
                         </div>
                     ) : (
                         <p className="inline-empty">No approved faculty accounts.</p>
+                    )}
+                </section>
+                <section className="surface-panel">
+                    <div className="panel-heading">
+                        <div>
+                            <p className="overline">DENIED ACCESS</p>
+                            <h2>
+                                Blocked requests <span className="count-badge">{rejected.length}</span>
+                            </h2>
+                        </div>
+                    </div>
+                    {rejected.length ? (
+                        <div className="account-list">
+                            {rejected.map(account => (
+                                <AccountRow key={account.id} account={account} status="rejected" />
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="inline-empty">No denied faculty requests.</p>
+                    )}
+                </section>
+                <section className="surface-panel">
+                    <div className="panel-heading">
+                        <div>
+                            <p className="overline">CAPSTONE REMOVAL</p>
+                            <h2>
+                                Deletion requests <span className="count-badge">{pendingProjectDeletions.length}</span>
+                            </h2>
+                        </div>
+                    </div>
+                    <p className="inline-empty">
+                        Delete the project document from Firestore first, then choose Deleted. Rejected requests leave
+                        the capstone published.
+                    </p>
+                    {pendingProjectDeletions.length ? (
+                        <div className="account-list">
+                            {pendingProjectDeletions.map(request => (
+                                <article className="account-row deletion-request-row" key={request.id}>
+                                    <span className="account-avatar">
+                                        {(request.facultyName || "F").slice(0, 1).toUpperCase()}
+                                    </span>
+                                    <div className="account-details">
+                                        <strong>{request.projectTitle}</strong>
+                                        <span>{request.facultyName} · {request.facultyEmail}</span>
+                                        <small>Project document ID: {request.projectId}</small>
+                                    </div>
+                                    <span className="status-pill status-pending">Pending</span>
+                                    <div className="account-actions">
+                                        <MaterialButton
+                                            icon={Check}
+                                            className="m3-compact"
+                                            onClick={() => resolveProjectDeletion(request, "deleted")}
+                                        >
+                                            Deleted
+                                        </MaterialButton>
+                                        <MaterialButton
+                                            variant="tonal"
+                                            icon={X}
+                                            className="m3-compact m3-delete"
+                                            onClick={() => resolveProjectDeletion(request, "rejected")}
+                                        >
+                                            Rejected
+                                        </MaterialButton>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="inline-empty">No capstone deletion requests need review.</p>
+                    )}
+                    {resolvedProjectDeletions.length > 0 && (
+                        <div className="account-list deletion-history">
+                            {resolvedProjectDeletions.map(request => (
+                                <article className="account-row" key={request.id}>
+                                    <span className="account-avatar">
+                                        {(request.facultyName || "F").slice(0, 1).toUpperCase()}
+                                    </span>
+                                    <div className="account-details">
+                                        <strong>{request.projectTitle}</strong>
+                                        <span>{request.facultyEmail}</span>
+                                    </div>
+                                    <span
+                                        className={`status-pill ${request.status === "deleted" ? "status-approved" : "status-rejected"}`}
+                                    >
+                                        {request.status === "deleted" ? "Deleted" : "Rejected"}
+                                    </span>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+                </section>
+                <section className="surface-panel">
+                    <div className="panel-heading">
+                        <div>
+                            <p className="overline">FACULTY ACCOUNT REMOVAL</p>
+                            <h2>
+                                Account requests <span className="count-badge">{pendingAccountDeletions.length}</span>
+                            </h2>
+                        </div>
+                    </div>
+                    <p className="inline-empty">
+                        To approve removal, delete the faculty profile from Firestore and the user from Firebase
+                        Authentication, then choose Deleted.
+                    </p>
+                    {pendingAccountDeletions.length ? (
+                        <div className="account-list">
+                            {pendingAccountDeletions.map(request => (
+                                <article className="account-row deletion-request-row" key={request.id}>
+                                    <span className="account-avatar">
+                                        {(request.facultyName || "F").slice(0, 1).toUpperCase()}
+                                    </span>
+                                    <div className="account-details">
+                                        <strong>{request.facultyName}</strong>
+                                        <span>{request.facultyEmail}</span>
+                                        <small>Auth / profile UID: {request.facultyUid}</small>
+                                    </div>
+                                    <span className="status-pill status-pending">Pending</span>
+                                    <div className="account-actions">
+                                        <MaterialButton
+                                            icon={Check}
+                                            className="m3-compact"
+                                            onClick={() => resolveAccountDeletion(request, "deleted")}
+                                        >
+                                            Deleted
+                                        </MaterialButton>
+                                        <MaterialButton
+                                            variant="tonal"
+                                            icon={X}
+                                            className="m3-compact m3-delete"
+                                            onClick={() => resolveAccountDeletion(request, "rejected")}
+                                        >
+                                            Rejected
+                                        </MaterialButton>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="inline-empty">No faculty account removal requests need review.</p>
+                    )}
+                    {resolvedAccountDeletions.length > 0 && (
+                        <div className="account-list deletion-history">
+                            {resolvedAccountDeletions.map(request => (
+                                <article className="account-row" key={request.id}>
+                                    <span className="account-avatar">
+                                        {(request.facultyName || "F").slice(0, 1).toUpperCase()}
+                                    </span>
+                                    <div className="account-details">
+                                        <strong>{request.facultyName}</strong>
+                                        <span>{request.facultyEmail}</span>
+                                    </div>
+                                    <span
+                                        className={`status-pill ${request.status === "deleted" ? "status-approved" : "status-rejected"}`}
+                                    >
+                                        {request.status === "deleted" ? "Deleted" : "Rejected"}
+                                    </span>
+                                </article>
+                            ))}
+                        </div>
                     )}
                 </section>
             </div>
@@ -1135,18 +1397,36 @@ function FacultyAccountsView({ session, facultyAccounts, approve }) {
 
 function LoginView({ role, setRole, login, requestAccess, requestOpen, setRequestOpen, session }) {
     const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [submitting, setSubmitting] = useState(false);
     const requestRef = useRef(null);
-    const loginRef = useRef(null);
-    const demoEmail = role === "admin" ? DEMO_ACCOUNTS[0].email : DEMO_ACCOUNTS[1].email;
-    function submitLogin(event) {
+    async function submitLogin(event) {
         event.preventDefault();
-        login(role, email.trim().toLowerCase());
+        setSubmitting(true);
+        try {
+            await login(role, email.trim().toLowerCase(), password);
+        } finally {
+            setSubmitting(false);
+        }
     }
-    function submitRequest(event) {
+    async function submitRequest(event) {
         event.preventDefault();
-        const data = new FormData(event.currentTarget);
-        requestAccess({ name: String(data.get("name")).trim(), email: String(data.get("email")).trim().toLowerCase() });
-        setRequestOpen(false);
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        setSubmitting(true);
+        try {
+            const created = await requestAccess({
+                name: String(data.get("name")).trim(),
+                email: String(data.get("email")).trim().toLowerCase(),
+                password: String(data.get("password")),
+            });
+            if (created) {
+                form.reset();
+                setRequestOpen(false);
+            }
+        } finally {
+            setSubmitting(false);
+        }
     }
     return (
         <>
@@ -1177,7 +1457,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                             Admin
                         </MaterialButton>
                     </div>
-                    <form id="login-form" ref={loginRef} onSubmit={submitLogin}>
+                    <form id="login-form" onSubmit={submitLogin}>
                         <label className="form-field">
                             <span>
                                 Institutional email <b>Required</b>
@@ -1191,11 +1471,21 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                                 placeholder="name.sjc@phinmaed.com"
                             />
                         </label>
-                        <MaterialButton className="auth-submit" icon={ArrowForwardIcon} type="submit">
+                        <label className="form-field">
+                            <span>
+                                Password <b>Required</b>
+                            </span>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={event => setPassword(event.target.value)}
+                                required
+                                autoComplete="current-password"
+                                placeholder="Enter your password"
+                            />
+                        </label>
+                        <MaterialButton className="auth-submit" icon={ArrowForwardIcon} type="submit" disabled={submitting}>
                             Continue as {role}
-                        </MaterialButton>
-                        <MaterialButton variant="text" className="demo-fill" onClick={() => setEmail(demoEmail)}>
-                            Use preview account <span>{demoEmail}</span>
                         </MaterialButton>
                     </form>
                     {role === "faculty" && (
@@ -1231,15 +1521,28 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                                         </span>
                                         <input name="email" type="email" required placeholder="name.sjc@phinmaed.com" />
                                     </label>
-                                    <MaterialButton variant="tonal" icon={Send} type="submit">
-                                        Send access request
+                                    <label className="form-field">
+                                        <span>
+                                            Password <b>Required</b>
+                                        </span>
+                                        <input
+                                            name="password"
+                                            type="password"
+                                            required
+                                            minLength="6"
+                                            autoComplete="new-password"
+                                            placeholder="At least 6 characters"
+                                        />
+                                    </label>
+                                    <MaterialButton variant="tonal" icon={Send} type="submit" disabled={submitting}>
+                                        Create faculty account
                                     </MaterialButton>
                                 </form>
                             )}
                         </div>
                     )}
                     <p className="auth-disclaimer">
-                        <Info size={15} /> Preview access only. Firebase Authentication is not connected yet.
+                        <Info size={15} /> Faculty accounts require admin approval before sign-in is enabled.
                     </p>
                 </div>
                 <aside className="auth-aside">
@@ -1326,7 +1629,7 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                     required
                                     defaultValue={dialog.project.imageUrl || ""}
                                 />
-                                <small>Paste a public image URL for the showcase preview.</small>
+                                <small>Paste a public image URL for the showcase cover.</small>
                             </label>
                             <label className="form-field">
                                 <span>
@@ -1449,16 +1752,19 @@ function LinkRipples() {
 }
 
 export default function App() {
-    const [projects, setProjects] = useState(() => readStore(STORE.projects, []));
-    const [facultyAccounts, setFacultyAccounts] = useState(() => readStore(STORE.faculty, []));
-    const [session, setSession] = useState(readSession);
-    const [view, setView] = useState(() => (readSession() ? "overview" : "showcase"));
-    const [theme, setTheme] = useState(() => (readStore(STORE.theme, "light") === "dark" ? "dark" : "light"));
+    const [projects, setProjects] = useState([]);
+    const [facultyAccounts, setFacultyAccounts] = useState([]);
+    const [projectDeletionRequests, setProjectDeletionRequests] = useState([]);
+    const [accountDeletionRequests, setAccountDeletionRequests] = useState([]);
+    const [session, setSession] = useState(null);
+    const [view, setView] = useState("showcase");
+    const [theme, setTheme] = useState(readTheme);
     const [authRole, setAuthRole] = useState("faculty");
     const [query, setQuery] = useState("");
     const [requestOpen, setRequestOpen] = useState(false);
     const [dialog, setDialog] = useState(null);
     const [toast, setToast] = useState("");
+    const authCheckRef = useRef(0);
 
     useLayoutEffect(() => {
         document.documentElement.dataset.theme = theme;
@@ -1468,42 +1774,104 @@ export default function App() {
     }, [theme]);
     useEffect(() => {
         try {
-            localStorage.setItem(STORE.theme, JSON.stringify(theme));
-        } catch {
-            // The selected theme remains active for this session.
-        }
+            localStorage.setItem("portfolihub-theme", theme);
+        } catch {}
     }, [theme]);
 
     useEffect(() => {
-        try {
-            localStorage.setItem(STORE.projects, JSON.stringify(projects));
-        } catch {
-            setToast("Browser storage is unavailable; changes will not persist.");
+        if (!auth || !db) {
+            setToast("Firebase configuration is missing. Check your VITE_FIREBASE settings.");
+            return undefined;
         }
-    }, [projects]);
+
+        let active = true;
+        const unsubscribe = onAuthStateChanged(auth, async user => {
+            const checkId = ++authCheckRef.current;
+            if (!user) {
+                setSession(null);
+                setView("showcase");
+                return;
+            }
+
+            try {
+                const profile = await loadUserProfile(user.uid);
+                if (!active || checkId !== authCheckRef.current) return;
+                if (!profile) {
+                    setSession(null);
+                    return;
+                }
+                if (profile.status !== "approved") {
+                    setSession(null);
+                    setToast(
+                        profile.status === "rejected"
+                            ? "Your faculty access request was denied. Contact an administrator."
+                            : "Your faculty account is awaiting admin approval.",
+                    );
+                    await firebaseSignOut(auth);
+                    return;
+                }
+                setSession(profile);
+                setView("overview");
+            } catch (error) {
+                if (!active || checkId !== authCheckRef.current) return;
+                setSession(null);
+                setToast(`Could not load your Firebase profile: ${error.message}`);
+            }
+        });
+        return () => {
+            active = false;
+            authCheckRef.current += 1;
+            unsubscribe();
+        };
+    }, []);
+
     useEffect(() => {
-        try {
-            localStorage.setItem(STORE.faculty, JSON.stringify(facultyAccounts));
-        } catch {
-            setToast("Browser storage is unavailable; changes will not persist.");
-        }
-    }, [facultyAccounts]);
+        if (!db) return undefined;
+        return onSnapshot(
+            collection(db, "projects"),
+            snapshot => {
+                const records = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
+                records.sort((left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0));
+                setProjects(records);
+            },
+            error => setToast(`Could not load capstones: ${error.message}`),
+        );
+    }, []);
+
     useEffect(() => {
-        try {
-            session
-                ? sessionStorage.setItem(STORE.session, JSON.stringify(session))
-                : sessionStorage.removeItem(STORE.session);
-        } catch {
-            /* Preview session remains in memory. */
+        if (!db || session?.role !== "admin") {
+            setFacultyAccounts([]);
+            setProjectDeletionRequests([]);
+            setAccountDeletionRequests([]);
+            return undefined;
         }
-    }, [session]);
+        const unsubscribeFaculty = onSnapshot(
+            collection(db, "faculty"),
+            snapshot => setFacultyAccounts(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))),
+            error => setToast(`Could not load faculty accounts: ${error.message}`),
+        );
+        const unsubscribeDeletionRequests = onSnapshot(
+            collection(db, "deletionRequests"),
+            snapshot => setProjectDeletionRequests(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))),
+            error => setToast(`Could not load capstone deletion requests: ${error.message}`),
+        );
+        const unsubscribeAccountRequests = onSnapshot(
+            collection(db, "accountDeletionRequests"),
+            snapshot => setAccountDeletionRequests(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))),
+            error => setToast(`Could not load faculty account requests: ${error.message}`),
+        );
+        return () => {
+            unsubscribeFaculty();
+            unsubscribeDeletionRequests();
+            unsubscribeAccountRequests();
+        };
+    }, [session?.role]);
     useEffect(() => {
         if (!toast) return undefined;
         const timer = window.setTimeout(() => setToast(""), 3200);
         return () => window.clearTimeout(timer);
     }, [toast]);
 
-    const accounts = [...DEMO_ACCOUNTS, ...facultyAccounts];
     const notify = message => setToast(message);
     function navigate(destination) {
         if (destination === "portal" || destination === "faculty-login" || destination === "admin-login") {
@@ -1512,100 +1880,254 @@ export default function App() {
         } else setView(session || destination === "assistant" ? destination : "showcase");
         setQuery("");
     }
-    function signOut() {
-        setSession(null);
-        setView("showcase");
-        setQuery("");
+    async function signOut() {
+        try {
+            await firebaseSignOut(auth);
+            setQuery("");
+        } catch (error) {
+            notify(`Could not sign out: ${error.message}`);
+        }
     }
-    function login(role, email) {
-        const account = accounts.find(item => item.email === email && item.role === role);
-        if (!account)
-            return notify("No matching preview account. Use the preview account button or request faculty access.");
-        if (account.status !== "approved") return notify("This faculty account is pending admin approval.");
-        setSession({ role, email: account.email, name: account.name });
-        setView("overview");
-        setQuery("");
+    async function login(role, email, password) {
+        if (!auth || !db) return notify("Firebase is not configured. Check your environment settings.");
+        try {
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            const profile = await loadUserProfile(credential.user.uid);
+            if (!profile) {
+                await firebaseSignOut(auth);
+                return notify("No Firestore profile is linked to this account. Contact an administrator.");
+            }
+            if (profile.role !== role) {
+                await firebaseSignOut(auth);
+                return notify(`This account is registered as ${profile.role}. Select the matching sign-in role.`);
+            }
+            if (profile.status !== "approved") {
+                await firebaseSignOut(auth);
+                return notify(
+                    profile.status === "rejected"
+                        ? "Your faculty access request was denied. Contact an administrator."
+                        : "Your faculty account is awaiting admin approval.",
+                );
+            }
+            setSession(profile);
+            setView("overview");
+            setQuery("");
+        } catch (error) {
+            notify(`Sign-in failed: ${error.message}`);
+        }
     }
-    function requestAccess({ name, email }) {
+    async function requestAccess({ name, email, password }) {
+        if (!auth || !db) return notify("Firebase is not configured. Check your environment settings.");
         const trimmedEmail = String(email || "")
             .trim()
             .toLowerCase();
         if (!isFacultyEmail(trimmedEmail)) {
             notify("Faculty email must use the .sjc@phinmaed.com format.");
-            return;
+            return false;
         }
-        if (accounts.some(item => item.email === trimmedEmail)) {
-            notify("An account with this email already exists.");
-            return;
-        }
-        setFacultyAccounts(items => [
-            {
-                id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        let credential;
+        try {
+            credential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+            await setDoc(doc(db, "faculty", credential.user.uid), {
                 name,
                 email: trimmedEmail,
                 role: "faculty",
                 status: "pending",
-            },
-            ...items,
-        ]);
-        notify("Faculty access request sent for admin approval.");
+                createdAt: serverTimestamp(),
+            });
+            await firebaseSignOut(auth);
+            notify("Faculty account created. You can sign in after an admin approves it.");
+            return true;
+        } catch (error) {
+            if (credential?.user && auth.currentUser?.uid === credential.user.uid) {
+                await deleteUser(credential.user).catch(() => {});
+            }
+            notify(`Account registration failed: ${error.message}`);
+            return false;
+        }
     }
-    function publish(data) {
+    async function publish(data) {
+        if (!db || !session) return notify("Sign in with an approved account to publish a capstone.");
         const repo = repositoryUrl(data.repositoryUrl);
         if (!repo) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(data.imageUrl || "").trim();
         const image = imageUrl ? projectImage(imageUrl) : null;
-        if (imageUrl && !image) return notify("Enter a valid public image URL for the showcase preview.");
+        if (imageUrl && !image) return notify("Enter a valid public image URL for the capstone.");
         const videoUrl = String(data.demoVideoUrl || "").trim();
         const video = videoUrl ? projectVideo(videoUrl) : null;
         if (videoUrl && !video)
             return notify("Enter a supported HTTPS YouTube, Vimeo, or direct MP4, WebM, or Ogg URL.");
-        const project = {
-            ...data,
-            imageUrl: image?.url || "",
-            repositoryUrl: repo,
-            demoVideoUrl: video?.url || "",
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            facultyEmail: session.email,
-            facultyName: session.name,
-            createdLabel: new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(
-                new Date(),
-            ),
-        };
-        setProjects(items => [project, ...items]);
-        setQuery("");
-        setView(session.role === "admin" ? "manage-projects" : "my-projects");
-        notify("Capstone published to the public showcase.");
+        try {
+            await addDoc(collection(db, "projects"), {
+                ...data,
+                imageUrl: image?.url || "",
+                repositoryUrl: repo,
+                demoVideoUrl: video?.url || "",
+                facultyUid: session.uid,
+                facultyEmail: session.email,
+                facultyName: session.name,
+                createdAt: serverTimestamp(),
+                createdLabel: new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(
+                    new Date(),
+                ),
+            });
+            setQuery("");
+            setView(session.role === "admin" ? "manage-projects" : "my-projects");
+            notify("Capstone published to the public showcase.");
+        } catch (error) {
+            notify(`Could not publish capstone: ${error.message}`);
+        }
     }
-    function saveProject(id, changes) {
+    async function saveProject(id, changes) {
+        if (!db) return notify("Firebase is not configured.");
         if (!repositoryUrl(changes.repositoryUrl)) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(changes.imageUrl || "").trim();
         const image = imageUrl ? projectImage(imageUrl) : null;
-        if (imageUrl && !image) return notify("Enter a valid public image URL for the showcase preview.");
+        if (imageUrl && !image) return notify("Enter a valid public image URL for the capstone.");
         const videoUrl = String(changes.demoVideoUrl || "").trim();
         const video = videoUrl ? projectVideo(videoUrl) : null;
         if (videoUrl && !video)
             return notify("Enter a supported HTTPS YouTube, Vimeo, or direct MP4, WebM, or Ogg URL.");
-        setProjects(items =>
-            items.map(project =>
-                project.id === id
-                    ? { ...project, ...changes, imageUrl: image?.url || "", demoVideoUrl: video?.url || "" }
-                    : project,
-            ),
-        );
-        setDialog(null);
-        notify("Capstone changes saved.");
+        try {
+            await updateDoc(doc(db, "projects", id), {
+                ...changes,
+                imageUrl: image?.url || "",
+                demoVideoUrl: video?.url || "",
+                updatedAt: serverTimestamp(),
+            });
+            setDialog(null);
+            notify("Capstone changes saved.");
+        } catch (error) {
+            notify(`Could not save capstone: ${error.message}`);
+        }
     }
-    function deleteProject(id) {
-        setProjects(items => items.filter(project => project.id !== id));
-        setDialog(null);
-        notify("Capstone deleted from the showcase.");
+    async function deleteProject(id) {
+        if (!db) return notify("Firebase is not configured.");
+        try {
+            await deleteDoc(doc(db, "projects", id));
+            setDialog(null);
+            notify("Capstone deleted from the showcase.");
+        } catch (error) {
+            notify(`Could not delete capstone: ${error.message}`);
+        }
     }
-    function approveFaculty(id) {
-        setFacultyAccounts(items =>
-            items.map(account => (account.id === id ? { ...account, status: "approved" } : account)),
+    async function requestProjectDeletion(project) {
+        if (!db || session?.role !== "faculty") return notify("Sign in as faculty to request capstone deletion.");
+        const confirmed = window.confirm(`Ask an administrator to remove “${project.title}” from the showcase?`);
+        if (!confirmed) return;
+        try {
+            const existing = await getDocs(
+                query(
+                    collection(db, "deletionRequests"),
+                    where("projectId", "==", project.id),
+                    where("requestedByUid", "==", session.uid),
+                    where("status", "==", "pending"),
+                ),
+            );
+            if (!existing.empty) return notify("A deletion request for this capstone is already awaiting review.");
+            await addDoc(collection(db, "deletionRequests"), {
+                projectId: project.id,
+                projectTitle: project.title,
+                facultyUid: project.facultyUid || session.uid,
+                facultyEmail: session.email,
+                facultyName: session.name,
+                requestedByUid: session.uid,
+                status: "pending",
+                createdAt: serverTimestamp(),
+            });
+            notify("Deletion request sent to the admin for review.");
+        } catch (error) {
+            notify(`Could not send deletion request: ${error.message}`);
+        }
+    }
+    async function resolveProjectDeletion(request, status) {
+        if (!db || session?.role !== "admin") return notify("Only admins can resolve deletion requests.");
+        if (!['deleted', 'rejected'].includes(status)) return;
+        try {
+            if (status === "deleted") {
+                const project = await getDoc(doc(db, "projects", request.projectId));
+                if (project.exists()) {
+                    return notify("First delete the project document in Firestore, then mark this request Deleted.");
+                }
+            }
+            await updateDoc(doc(db, "deletionRequests", request.id), {
+                status,
+                resolvedByUid: session.uid,
+                resolvedAt: serverTimestamp(),
+            });
+            notify(status === "deleted" ? "Deletion request marked complete." : "Deletion request rejected.");
+        } catch (error) {
+            notify(`Could not update deletion request: ${error.message}`);
+        }
+    }
+    async function requestAccountDeletion() {
+        if (!db || session?.role !== "faculty") return notify("Only signed-in faculty can request account removal.");
+        if (!window.confirm("Ask an administrator to remove your faculty account? Your access will end once the request is completed.")) {
+            return;
+        }
+        try {
+            const existing = await getDocs(
+                query(
+                    collection(db, "accountDeletionRequests"),
+                    where("facultyUid", "==", session.uid),
+                    where("status", "==", "pending"),
+                ),
+            );
+            if (!existing.empty) return notify("Your account-removal request is already awaiting admin review.");
+            await addDoc(collection(db, "accountDeletionRequests"), {
+                facultyUid: session.uid,
+                facultyEmail: session.email,
+                facultyName: session.name,
+                status: "pending",
+                createdAt: serverTimestamp(),
+            });
+            notify("Account-removal request sent to the admin.");
+        } catch (error) {
+            notify(`Could not request account removal: ${error.message}`);
+        }
+    }
+    async function resolveAccountDeletion(request, status) {
+        if (!db || session?.role !== "admin") return notify("Only admins can resolve account-removal requests.");
+        if (!['deleted', 'rejected'].includes(status)) return;
+        try {
+            if (status === "deleted") {
+                const facultyProfile = await getDoc(doc(db, "faculty", request.facultyUid));
+                if (facultyProfile.exists()) {
+                    return notify("First remove this faculty profile and Auth user in Firebase Console, then mark it Deleted.");
+                }
+            }
+            await updateDoc(doc(db, "accountDeletionRequests", request.id), {
+                status,
+                resolvedByUid: session.uid,
+                resolvedAt: serverTimestamp(),
+            });
+            notify(status === "deleted" ? "Faculty account request marked complete." : "Faculty account request rejected.");
+        } catch (error) {
+            notify(`Could not update account-removal request: ${error.message}`);
+        }
+    }
+    async function approveFaculty(id) {
+        if (!db) return notify("Firebase is not configured.");
+        try {
+            await updateDoc(doc(db, "faculty", id), { status: "approved", updatedAt: serverTimestamp() });
+            notify("Faculty account approved.");
+        } catch (error) {
+            notify(`Could not approve faculty account: ${error.message}`);
+        }
+    }
+    async function denyFaculty(id) {
+        if (!db) return notify("Firebase is not configured.");
+        try {
+            await updateDoc(doc(db, "faculty", id), { status: "rejected", updatedAt: serverTimestamp() });
+            notify("Faculty request denied. The account remains blocked until deleted.");
+        } catch (error) {
+            notify(`Could not deny faculty request: ${error.message}`);
+        }
+    }
+    async function removeRejectedFaculty(account) {
+        window.alert(
+            `To free ${account.email}, delete this user from Firebase Authentication, then delete faculty/${account.id} from Firestore. The blocked request will disappear from this list when its Firestore profile is removed.`,
         );
-        notify("Faculty account approved.");
     }
 
     let content;
@@ -1629,11 +2151,23 @@ export default function App() {
                     query={query}
                     setQuery={setQuery}
                     navigate={navigate}
-                    onVoiceSearch={() => notify("Voice search is not available in this preview.")}
+                    onVoiceSearch={() => notify("Voice search is not available in this browser.")}
                 />
             );
     else if (view === "faculty" && session.role === "admin")
-        content = <FacultyAccountsView session={session} facultyAccounts={facultyAccounts} approve={approveFaculty} />;
+        content = (
+            <FacultyAccountsView
+                session={session}
+                facultyAccounts={facultyAccounts}
+                projectDeletionRequests={projectDeletionRequests}
+                accountDeletionRequests={accountDeletionRequests}
+                approve={approveFaculty}
+                deny={denyFaculty}
+                removeRejected={removeRejectedFaculty}
+                resolveProjectDeletion={resolveProjectDeletion}
+                resolveAccountDeletion={resolveAccountDeletion}
+            />
+        );
     else if (view === "manage-projects" && session.role === "admin")
         content = (
             <ManageProjectsView
@@ -1642,12 +2176,19 @@ export default function App() {
                 query={query}
                 setQuery={setQuery}
                 openDialog={(kind, project) => setDialog({ kind, project })}
-                onVoiceSearch={() => notify("Voice search is not available in this preview.")}
+                onVoiceSearch={() => notify("Voice search is not available in this browser.")}
             />
         );
     else if (view === "upload") content = <UploadView session={session} publish={publish} />;
     else if (view === "my-projects" && session.role === "faculty")
-        content = <StudentCapstonesView session={session} projects={projects} />;
+        content = (
+            <StudentCapstonesView
+                session={session}
+                projects={projects}
+                requestDeletion={requestProjectDeletion}
+                requestAccountDeletion={requestAccountDeletion}
+            />
+        );
     else if (view === "showcase")
         content = (
             <ShowcaseView
@@ -1656,7 +2197,7 @@ export default function App() {
                 query={query}
                 setQuery={setQuery}
                 navigate={navigate}
-                onVoiceSearch={() => notify("Voice search is not available in this preview.")}
+                onVoiceSearch={() => notify("Voice search is not available in this browser.")}
             />
         );
     else

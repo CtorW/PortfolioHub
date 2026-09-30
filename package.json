@@ -10,6 +10,7 @@
     },
     "dependencies": {
         "@material/web": "^2.5.0",
+        "firebase": "^12.19.0",
         "lucide-react": "^1.48.0",
         "motion": "^13.4.5",
         "react": "^19.3.0",
