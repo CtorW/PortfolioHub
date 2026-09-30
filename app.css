@@ -732,7 +732,7 @@ md-menu.assistant-model-menu {
     max-width: 100%;
     flex: 0 1 auto;
     padding: 11px 16px;
-    border-radius: 9999px;
+    border-radius: 18px 18px 18px 7px;
     background: var(--surface-low);
 }
 .assistant-message strong {
@@ -749,6 +749,7 @@ md-menu.assistant-model-menu {
     overflow-wrap: anywhere;
 }
 .assistant-message.message-user > div {
+    border-radius: 18px 18px 18px 18px;
     background: var(--accent-soft);
 }
 .assistant-thinking {
