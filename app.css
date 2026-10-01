@@ -424,6 +424,46 @@ textarea:focus-visible {
 .section-toolbar {
     margin-bottom: 19px;
 }
+.project-category-filters {
+    margin: -4px 0 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.project-category-filter {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 9999px;
+    background: var(--surface-white);
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transform-origin: center;
+    transition:
+        background-color var(--motion-expressive-default-effects),
+        border-color var(--motion-expressive-default-effects),
+        color var(--motion-expressive-default-effects),
+        transform 400ms cubic-bezier(0.42, 1.67, 0.21, 0.9);
+}
+.project-category-filter:hover {
+    background: var(--surface-low);
+    color: var(--ink);
+    transform: scale(1.04);
+}
+.project-category-filter:active {
+    transform: scale(0.96);
+}
+.project-category-filter.is-selected {
+    border-color: transparent;
+    background: var(--accent-soft);
+    color: var(--primary-deep);
+}
+.project-category-field .assistant-model-trigger {
+    width: min(220px, 100%);
+}
 .section-toolbar h2,
 .panel-heading h2 {
     margin: 0;

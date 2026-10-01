@@ -60,6 +60,8 @@ import {
 import { auth, db, firebaseReady } from "./firebase";
 
 const OLLAMA_BASE_URL = String(import.meta.env.VITE_OLLAMA_BASE_URL || "").trim().replace(/\/+$/, "");
+const PROJECT_CATEGORIES = ["Systems", "AI", "Applications", "Websites"];
+const PROJECT_FILTERS = ["All", ...PROJECT_CATEGORIES];
 function ollamaBaseUrl() {
     if (OLLAMA_BASE_URL) return OLLAMA_BASE_URL;
     const protocol = window.location.protocol === "https:" ? "https:" : "http:";
@@ -70,7 +72,7 @@ Answer concise questions about this application's workflow using only these fact
 - Firebase Authentication handles sign-in and faculty registration. Firestore stores user profiles and capstones.
 - Faculty access requests require an address ending in .sjc@phinmaed.com.
 - An admin reviews and approves faculty access requests in the Faculty accounts view.
-- Approved faculty can publish a capstone by providing its title, capstone leader's name, description, public image URL, and repository URL. A demo video is optional.
+- Approved faculty can publish a capstone by providing its title, capstone leader's name, category (Systems, AI, Applications, or Websites), description, public image URL, and repository URL. A demo video is optional.
 - Publishing a capstone makes it public immediately. The app currently has no draft or pending-capstone approval state.
 - Admins can edit or delete published capstones.
 - Pending and approved refer to faculty access accounts, not student capstones.
@@ -187,6 +189,58 @@ function MaterialIconButton({ icon: Icon, label, className = "", ...props }) {
         <md-icon-button className={`m3-icon-button ${className}`} aria-label={label} {...props}>
             <Icon slot="icon" size={20} strokeWidth={2} aria-hidden="true" />
         </md-icon-button>
+    );
+}
+
+function ProjectCategoryMenu({ id, defaultValue = "" }) {
+    const [category, setCategory] = useState(defaultValue);
+    const menuRef = useRef(null);
+    const menuId = `${id}-menu`;
+    const labelId = `${id}-label`;
+
+    return (
+        <label className="form-field project-category-field">
+            <span id={labelId}>
+                Project category <b>Required</b>
+            </span>
+            <input type="hidden" name="category" value={category} readOnly />
+            <button
+                id={id}
+                type="button"
+                className="assistant-model-trigger"
+                aria-labelledby={`${labelId} ${id}-value`}
+                aria-haspopup="menu"
+                aria-controls={menuId}
+                onClick={() => menuRef.current?.show()}
+            >
+                <span id={`${id}-value`}>{category || "Select category"}</span>
+                <ChevronDown size={16} aria-hidden="true" />
+            </button>
+            <md-menu
+                id={menuId}
+                class="assistant-model-menu"
+                ref={menuRef}
+                anchor={id}
+                positioning="popover"
+                anchor-corner="end-start"
+                menu-corner="start-start"
+            >
+                {PROJECT_CATEGORIES.map(item => (
+                    <md-menu-item
+                        key={item}
+                        type="button"
+                        selected={item === category}
+                        onClick={() => {
+                            setCategory(item);
+                            menuRef.current?.close();
+                        }}
+                    >
+                        <span slot="start">{item === category && <Check size={17} aria-hidden="true" />}</span>
+                        <span slot="headline">{item}</span>
+                    </md-menu-item>
+                ))}
+            </md-menu>
+        </label>
     );
 }
 
@@ -713,6 +767,7 @@ function ProjectCard({ project, canManage, canRequestDelete, index = 0, onOpen, 
 function ProjectGrid({
     projects,
     query = "",
+    category = "All",
     session,
     canManage = false,
     canRequestDelete = false,
@@ -725,20 +780,19 @@ function ProjectGrid({
     emptyMessage = "Approved faculty can publish student team projects directly to this showcase.",
 }) {
     const needle = query.trim().toLowerCase();
-    const results = projects.filter(
-        item =>
-            !needle ||
-            `${item.title} ${item.description} ${item.leaderName || item.facultyName || ""}`
-                .toLowerCase()
-                .includes(needle),
-    );
+    const results = projects.filter(item => {
+        const matchesCategory = category === "All" || item.category === category;
+        const searchable = `${item.title} ${item.description} ${item.leaderName || item.facultyName || ""} ${item.category || ""}`;
+        return matchesCategory && (!needle || searchable.toLowerCase().includes(needle));
+    });
+    const hasFilters = Boolean(needle) || category !== "All";
     if (!results.length)
         return (
             <div className="empty-state">
                 <FolderOpen className="empty-icon" size={28} />
-                <h2>{query ? "No matching capstones" : emptyTitle}</h2>
-                <p>{query ? "Try another title or keyword." : emptyMessage}</p>
-                {!query && !session && (
+                <h2>{hasFilters ? "No matching capstones" : emptyTitle}</h2>
+                <p>{hasFilters ? "Try another search or category." : emptyMessage}</p>
+                {!hasFilters && !session && (
                     <MaterialButton icon={ArrowForwardIcon} onClick={onFacultyLogin}>
                         Faculty sign in
                     </MaterialButton>
@@ -831,6 +885,10 @@ function ProjectArticleView({
                             <dd>{project.leaderName || project.facultyName || "Capstone leader"}</dd>
                         </div>
                         <div>
+                            <dt>Category</dt>
+                            <dd>{project.category || "Uncategorized"}</dd>
+                        </div>
+                        <div>
                             <dt>Published</dt>
                             <dd>{project.createdLabel || "Recently added"}</dd>
                         </div>
@@ -904,6 +962,7 @@ function ProjectArticleView({
 }
 
 function ShowcaseView({ session, projects, query, setQuery, navigate, onOpenProject, onVoiceSearch }) {
+    const [category, setCategory] = useState("All");
     return (
         <>
             <PageHeader
@@ -945,9 +1004,23 @@ function ShowcaseView({ session, projects, query, setQuery, navigate, onOpenProj
                         onVoiceSearch={onVoiceSearch}
                     />
                 </div>
+                <div className="project-category-filters" role="group" aria-label="Filter capstones by category">
+                    {PROJECT_FILTERS.map(item => (
+                        <button
+                            key={item}
+                            type="button"
+                            className={`project-category-filter${category === item ? " is-selected" : ""}`}
+                            aria-pressed={category === item}
+                            onClick={() => setCategory(item)}
+                        >
+                            {item}
+                        </button>
+                    ))}
+                </div>
                 <ProjectGrid
                     projects={projects}
                     query={query}
+                    category={category}
                     session={session}
                     onOpen={onOpenProject}
                     onFacultyLogin={() => navigate("faculty-login")}
@@ -1065,12 +1138,14 @@ function OverviewView({ session, projects, facultyAccounts, navigate, onOpenProj
 
 function UploadView({ session, publish }) {
     const formRef = useRef(null);
+    const [categoryMenuVersion, setCategoryMenuVersion] = useState(0);
     function submit(event) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
         publish({
             title: String(data.get("title")).trim(),
             leaderName: String(data.get("leaderName")).trim(),
+            category: String(data.get("category") || ""),
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
@@ -1103,6 +1178,7 @@ function UploadView({ session, publish }) {
                         </span>
                         <input name="leaderName" required maxLength="100" placeholder="Student team leader's name" />
                     </label>
+                    <ProjectCategoryMenu key={categoryMenuVersion} id="upload-project-category" />
                     <label className="form-field">
                         <span>
                             Capstone description / about <b>Required</b>
@@ -1154,7 +1230,13 @@ function UploadView({ session, publish }) {
                         <MaterialButton icon={ArrowForwardIcon} type="submit">
                             Publish capstone
                         </MaterialButton>
-                        <MaterialButton variant="tonal" onClick={() => formRef.current?.reset()}>
+                        <MaterialButton
+                            variant="tonal"
+                            onClick={() => {
+                                formRef.current?.reset();
+                                setCategoryMenuVersion(version => version + 1);
+                            }}
+                        >
                             Clear fields
                         </MaterialButton>
                     </div>
@@ -1711,6 +1793,7 @@ function ProjectDialog({ dialog, close, save, remove }) {
         save(dialog.project.id, {
             title: String(data.get("title")).trim(),
             leaderName: String(data.get("leaderName")).trim(),
+            category: String(data.get("category") || ""),
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
@@ -1759,6 +1842,11 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                     defaultValue={dialog.project.leaderName || dialog.project.facultyName || ""}
                                 />
                             </label>
+                            <ProjectCategoryMenu
+                                key={dialog.project.id}
+                                id="edit-project-category"
+                                defaultValue={dialog.project.category || ""}
+                            />
                             <label className="form-field">
                                 <span>
                                     Capstone description / about <b>Required</b>
@@ -2144,6 +2232,8 @@ export default function App() {
         if (!db || !session) return notify("Sign in with an approved account to publish a capstone.");
         const leaderName = String(data.leaderName || "").trim();
         if (!leaderName || leaderName.length > 100) return notify("Enter the capstone leader's name (up to 100 characters).");
+        const category = String(data.category || "");
+        if (!PROJECT_CATEGORIES.includes(category)) return notify("Choose a valid capstone category.");
         const repo = repositoryUrl(data.repositoryUrl);
         if (!repo) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(data.imageUrl || "").trim();
@@ -2157,6 +2247,7 @@ export default function App() {
             await addDoc(collection(db, "projects"), {
                 ...data,
                 leaderName,
+                category,
                 imageUrl: image?.url || "",
                 repositoryUrl: repo,
                 demoVideoUrl: video?.url || "",
@@ -2179,6 +2270,8 @@ export default function App() {
         if (!db) return notify("Firebase is not configured.");
         const leaderName = String(changes.leaderName || "").trim();
         if (!leaderName || leaderName.length > 100) return notify("Enter the capstone leader's name (up to 100 characters).");
+        const category = String(changes.category || "");
+        if (!PROJECT_CATEGORIES.includes(category)) return notify("Choose a valid capstone category.");
         if (!repositoryUrl(changes.repositoryUrl)) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(changes.imageUrl || "").trim();
         const image = imageUrl ? projectImage(imageUrl) : null;
@@ -2191,6 +2284,7 @@ export default function App() {
             await updateDoc(doc(db, "projects", id), {
                 ...changes,
                 leaderName,
+                category,
                 imageUrl: image?.url || "",
                 demoVideoUrl: video?.url || "",
                 updatedAt: serverTimestamp(),
