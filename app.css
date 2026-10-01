@@ -464,6 +464,10 @@ textarea:focus-visible {
 .project-category-field .assistant-model-trigger {
     width: min(220px, 100%);
 }
+.category-error {
+    color: var(--danger);
+    font-size: 11px;
+}
 .section-toolbar h2,
 .panel-heading h2 {
     margin: 0;
@@ -885,6 +889,45 @@ md-menu.assistant-model-menu {
     object-fit: cover;
     border-radius: 12px;
     background: var(--surface-dark);
+}
+.project-image-fallback {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 8px;
+    background: var(--surface-low);
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+}
+.project-article-cover.project-image-fallback {
+    aspect-ratio: 16 / 9;
+}
+.project-preview-card {
+    margin: 20px 0;
+    padding: 16px 0;
+    border-block: 1px solid var(--line);
+}
+.project-preview-card h3 {
+    margin: 4px 0 0;
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.2;
+}
+.project-preview-card .overline {
+    margin-bottom: 0;
+}
+.preview-attribution {
+    margin: 9px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+.project-grid-more {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    padding-top: 4px;
 }
 .project-description {
     min-height: 47px;

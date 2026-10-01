@@ -64,11 +64,11 @@ service cloud.firestore {
         ))
         && request.resource.data.keys().hasAll([
           'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
-          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'createdAt', 'createdLabel'
+          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'contributors', 'createdAt', 'createdLabel'
         ])
         && request.resource.data.keys().hasOnly([
           'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
-          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'createdAt', 'createdLabel'
+          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'contributors', 'createdAt', 'createdLabel'
         ])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
@@ -85,8 +85,34 @@ service cloud.firestore {
         && request.resource.data.leaderName.size() > 0
         && request.resource.data.leaderName.size() <= 100
         && request.resource.data.category in ['Systems', 'AI', 'Applications', 'Websites']
+        && request.resource.data.contributors is list
+        && request.resource.data.contributors.size() <= 12
         && request.resource.data.createdAt is timestamp;
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.keys().hasAll([
+          'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
+          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'contributors', 'createdAt', 'createdLabel'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
+          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'contributors', 'createdAt', 'createdLabel', 'updatedAt'
+        ])
+        && request.resource.data.facultyUid == resource.data.facultyUid
+        && request.resource.data.facultyEmail == resource.data.facultyEmail
+        && request.resource.data.facultyName == resource.data.facultyName
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 1600
+        && request.resource.data.leaderName is string
+        && request.resource.data.leaderName.size() > 0
+        && request.resource.data.leaderName.size() <= 100
+        && request.resource.data.category in ['Systems', 'AI', 'Applications', 'Websites']
+        && request.resource.data.contributors is list
+        && request.resource.data.contributors.size() <= 12
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
     }
 
     match /deletionRequests/{requestId} {

@@ -13,6 +13,7 @@ import {
     Globe2,
     GraduationCap,
     Info,
+    ImageOff,
     LayoutDashboard,
     Lightbulb,
     LogIn,
@@ -49,11 +50,15 @@ import {
     deleteDoc,
     doc,
     getDoc,
+    getCountFromServer,
     getDocs,
+    limit,
     onSnapshot,
-    query,
+    orderBy,
+    query as firestoreQuery,
     serverTimestamp,
     setDoc,
+    startAfter,
     updateDoc,
     where,
 } from "firebase/firestore";
@@ -62,6 +67,7 @@ import { auth, db, firebaseReady } from "./firebase";
 const OLLAMA_BASE_URL = String(import.meta.env.VITE_OLLAMA_BASE_URL || "").trim().replace(/\/+$/, "");
 const PROJECT_CATEGORIES = ["Systems", "AI", "Applications", "Websites"];
 const PROJECT_FILTERS = ["All", ...PROJECT_CATEGORIES];
+const PROJECT_PAGE_SIZE = 24;
 function ollamaBaseUrl() {
     if (OLLAMA_BASE_URL) return OLLAMA_BASE_URL;
     const protocol = window.location.protocol === "https:" ? "https:" : "http:";
@@ -192,7 +198,7 @@ function MaterialIconButton({ icon: Icon, label, className = "", ...props }) {
     );
 }
 
-function ProjectCategoryMenu({ id, defaultValue = "" }) {
+function ProjectCategoryMenu({ id, defaultValue = "", error = "", onChange }) {
     const [category, setCategory] = useState(defaultValue);
     const menuRef = useRef(null);
     const menuId = `${id}-menu`;
@@ -232,6 +238,7 @@ function ProjectCategoryMenu({ id, defaultValue = "" }) {
                         selected={item === category}
                         onClick={() => {
                             setCategory(item);
+                            onChange?.(item);
                             menuRef.current?.close();
                         }}
                     >
@@ -240,6 +247,7 @@ function ProjectCategoryMenu({ id, defaultValue = "" }) {
                     </md-menu-item>
                 ))}
             </md-menu>
+            {error && <small className="category-error" role="alert">{error}</small>}
         </label>
     );
 }
@@ -696,6 +704,7 @@ function ShowcaseFooter() {
 
 function ProjectCard({ project, canManage, canRequestDelete, index = 0, onOpen, onEdit, onDelete, onRequestDelete }) {
     const image = project.imageUrl ? projectImage(project.imageUrl) : null;
+    const [imageFailed, setImageFailed] = useState(false);
     return (
         <motion.article
             className="project-card"
@@ -710,15 +719,22 @@ function ProjectCard({ project, canManage, canRequestDelete, index = 0, onOpen, 
                 <span className="project-date">{project.createdLabel || "Recently added"}</span>
             </div>
             <h3>{project.title}</h3>
-            {image && (
-                <img
-                    className="project-image"
-                    src={image.url}
-                    alt={`${project.title} cover image`}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                />
-            )}
+            {image &&
+                (imageFailed ? (
+                    <div className="project-image project-image-fallback" role="img" aria-label={`${project.title} image unavailable`}>
+                        <ImageOff size={24} aria-hidden="true" />
+                        <span>Image unavailable</span>
+                    </div>
+                ) : (
+                    <img
+                        className="project-image"
+                        src={image.url}
+                        alt={`${project.title} cover image`}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={() => setImageFailed(true)}
+                    />
+                ))}
             <p className="project-description">{project.description}</p>
             <div className="project-card-footer">
                 <span className="project-owner">
@@ -768,6 +784,9 @@ function ProjectGrid({
     projects,
     query = "",
     category = "All",
+    hasMoreProjects = false,
+    loadingMoreProjects = false,
+    onLoadMore,
     session,
     canManage = false,
     canRequestDelete = false,
@@ -780,11 +799,13 @@ function ProjectGrid({
     emptyMessage = "Approved faculty can publish student team projects directly to this showcase.",
 }) {
     const needle = query.trim().toLowerCase();
+    const [visibleCount, setVisibleCount] = useState(12);
     const results = projects.filter(item => {
         const matchesCategory = category === "All" || item.category === category;
         const searchable = `${item.title} ${item.description} ${item.leaderName || item.facultyName || ""} ${item.category || ""}`;
         return matchesCategory && (!needle || searchable.toLowerCase().includes(needle));
     });
+    useEffect(() => setVisibleCount(12), [query, category, projects]);
     const hasFilters = Boolean(needle) || category !== "All";
     if (!results.length)
         return (
@@ -792,6 +813,16 @@ function ProjectGrid({
                 <FolderOpen className="empty-icon" size={28} />
                 <h2>{hasFilters ? "No matching capstones" : emptyTitle}</h2>
                 <p>{hasFilters ? "Try another search or category." : emptyMessage}</p>
+                {hasMoreProjects && (
+                    <MaterialButton
+                        variant="tonal"
+                        icon={ChevronDown}
+                        disabled={loadingMoreProjects}
+                        onClick={onLoadMore}
+                    >
+                        {loadingMoreProjects ? "Loading capstones" : "Load more capstones"}
+                    </MaterialButton>
+                )}
                 {!hasFilters && !session && (
                     <MaterialButton icon={ArrowForwardIcon} onClick={onFacultyLogin}>
                         Faculty sign in
@@ -801,7 +832,7 @@ function ProjectGrid({
         );
     return (
         <div className="project-grid">
-            {results.map((project, index) => (
+            {results.slice(0, visibleCount).map((project, index) => (
                 <ProjectCard
                     key={project.id}
                     project={project}
@@ -814,6 +845,25 @@ function ProjectGrid({
                     onRequestDelete={onRequestDelete}
                 />
             ))}
+            {(results.length > visibleCount || hasMoreProjects) && (
+                <div className="project-grid-more">
+                    <MaterialButton
+                        variant="tonal"
+                        icon={ChevronDown}
+                        disabled={loadingMoreProjects}
+                        onClick={() => {
+                            if (results.length > visibleCount) setVisibleCount(count => count + 12);
+                            else onLoadMore?.();
+                        }}
+                    >
+                        {loadingMoreProjects
+                            ? "Loading capstones"
+                            : results.length > visibleCount
+                              ? `Show 12 more (${results.length - visibleCount} remaining)`
+                              : "Load more capstones"}
+                    </MaterialButton>
+                </div>
+            )}
         </div>
     );
 }
@@ -862,14 +912,7 @@ function ProjectArticleView({
                 </div>
             </header>
 
-            {image && (
-                <img
-                    className="project-article-cover"
-                    src={image.url}
-                    alt={`${project.title} cover image`}
-                    referrerPolicy="no-referrer"
-                />
-            )}
+            {image && <ProjectArticleImage project={project} image={image} />}
 
             <div className="project-article-layout">
                 <section className="project-article-copy" aria-labelledby="project-article-about">
@@ -888,6 +931,12 @@ function ProjectArticleView({
                             <dt>Category</dt>
                             <dd>{project.category || "Uncategorized"}</dd>
                         </div>
+                        {project.contributors?.length > 0 && (
+                            <div>
+                                <dt>Contributors</dt>
+                                <dd>{project.contributors.join(", ")}</dd>
+                            </div>
+                        )}
                         <div>
                             <dt>Published</dt>
                             <dd>{project.createdLabel || "Recently added"}</dd>
@@ -961,7 +1010,40 @@ function ProjectArticleView({
     );
 }
 
-function ShowcaseView({ session, projects, query, setQuery, navigate, onOpenProject, onVoiceSearch }) {
+function ProjectArticleImage({ project, image }) {
+    const [imageFailed, setImageFailed] = useState(false);
+    if (imageFailed) {
+        return (
+            <div className="project-article-cover project-image-fallback" role="img" aria-label={`${project.title} image unavailable`}>
+                <ImageOff size={28} aria-hidden="true" />
+                <span>Image unavailable</span>
+            </div>
+        );
+    }
+    return (
+        <img
+            className="project-article-cover"
+            src={image.url}
+            alt={`${project.title} cover image`}
+            referrerPolicy="no-referrer"
+            onError={() => setImageFailed(true)}
+        />
+    );
+}
+
+function ShowcaseView({
+    session,
+    projects,
+    projectCount,
+    hasMoreProjects,
+    loadingMoreProjects,
+    loadMoreProjects,
+    query,
+    setQuery,
+    navigate,
+    onOpenProject,
+    onVoiceSearch,
+}) {
     const [category, setCategory] = useState("All");
     return (
         <>
@@ -993,7 +1075,7 @@ function ShowcaseView({ session, projects, query, setQuery, navigate, onOpenProj
                     <div>
                         <p className="overline">PUBLIC DIRECTORY</p>
                         <h2>
-                            Browse capstones <span className="count-badge">{projects.length}</span>
+                            Browse capstones <span className="count-badge">{projectCount}</span>
                         </h2>
                     </div>
                     <SearchBar
@@ -1021,6 +1103,9 @@ function ShowcaseView({ session, projects, query, setQuery, navigate, onOpenProj
                     projects={projects}
                     query={query}
                     category={category}
+                    hasMoreProjects={hasMoreProjects}
+                    loadingMoreProjects={loadingMoreProjects}
+                    onLoadMore={loadMoreProjects}
                     session={session}
                     onOpen={onOpenProject}
                     onFacultyLogin={() => navigate("faculty-login")}
@@ -1139,13 +1224,24 @@ function OverviewView({ session, projects, facultyAccounts, navigate, onOpenProj
 function UploadView({ session, publish }) {
     const formRef = useRef(null);
     const [categoryMenuVersion, setCategoryMenuVersion] = useState(0);
+    const [categoryError, setCategoryError] = useState("");
+    const [preview, setPreview] = useState(null);
     function submit(event) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
-        publish({
+        if (!PROJECT_CATEGORIES.includes(String(data.get("category") || ""))) {
+            setCategoryError("Choose a project category before previewing.");
+            formRef.current?.querySelector("#upload-project-category")?.focus();
+            return;
+        }
+        setPreview({
             title: String(data.get("title")).trim(),
             leaderName: String(data.get("leaderName")).trim(),
             category: String(data.get("category") || ""),
+            contributors: String(data.get("contributors") || "")
+                .split(/\r?\n/)
+                .map(name => name.trim())
+                .filter(Boolean),
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
@@ -1160,7 +1256,47 @@ function UploadView({ session, publish }) {
                 session={session}
             />
             <section className="form-layout">
-                <form id="upload-form" className="surface-panel project-form" ref={formRef} onSubmit={submit}>
+                {preview && (
+                    <section className="surface-panel project-form project-preview" aria-labelledby="preview-heading">
+                        <div className="form-heading">
+                            <span className="step-pill">PREVIEW</span>
+                            <h2 id="preview-heading">Review before publishing</h2>
+                            <p>This capstone will be public as soon as you publish it.</p>
+                        </div>
+                        <article className="project-preview-card">
+                            <p className="overline">{preview.category}</p>
+                            <h3>{preview.title}</h3>
+                            {projectImage(preview.imageUrl) && (
+                                <img
+                                    className="project-image"
+                                    src={projectImage(preview.imageUrl).url}
+                                    alt={`${preview.title} cover image preview`}
+                                />
+                            )}
+                            <p className="project-description">{preview.description}</p>
+                            <p className="preview-attribution">Leader: {preview.leaderName}</p>
+                            {preview.contributors.length > 0 && (
+                                <p className="preview-attribution">Contributors: {preview.contributors.join(", ")}</p>
+                            )}
+                            <p className="preview-attribution">Repository: {preview.repositoryUrl}</p>
+                        </article>
+                        <div className="form-actions">
+                            <MaterialButton variant="tonal" onClick={() => setPreview(null)}>
+                                Back to editing
+                            </MaterialButton>
+                            <MaterialButton icon={ArrowForwardIcon} onClick={() => publish(preview)}>
+                                Publish capstone
+                            </MaterialButton>
+                        </div>
+                    </section>
+                )}
+                <form
+                    id="upload-form"
+                    className="surface-panel project-form"
+                    ref={formRef}
+                    onSubmit={submit}
+                    hidden={Boolean(preview)}
+                >
                     <div className="form-heading">
                         <span className="step-pill">NEW PROJECT</span>
                         <h2>Project details</h2>
@@ -1178,7 +1314,22 @@ function UploadView({ session, publish }) {
                         </span>
                         <input name="leaderName" required maxLength="100" placeholder="Student team leader's name" />
                     </label>
-                    <ProjectCategoryMenu key={categoryMenuVersion} id="upload-project-category" />
+                    <ProjectCategoryMenu
+                        key={categoryMenuVersion}
+                        id="upload-project-category"
+                        error={categoryError}
+                        onChange={() => setCategoryError("")}
+                    />
+                    <label className="form-field">
+                        <span>Other contributors</span>
+                        <textarea
+                            name="contributors"
+                            rows="3"
+                            maxLength="1200"
+                            placeholder="One student name per line"
+                        />
+                        <small>Optional. Add up to 12 additional team members.</small>
+                    </label>
                     <label className="form-field">
                         <span>
                             Capstone description / about <b>Required</b>
@@ -1228,7 +1379,7 @@ function UploadView({ session, publish }) {
                     </div>
                     <div className="form-actions">
                         <MaterialButton icon={ArrowForwardIcon} type="submit">
-                            Publish capstone
+                            Preview capstone
                         </MaterialButton>
                         <MaterialButton
                             variant="tonal"
@@ -1794,6 +1945,10 @@ function ProjectDialog({ dialog, close, save, remove }) {
             title: String(data.get("title")).trim(),
             leaderName: String(data.get("leaderName")).trim(),
             category: String(data.get("category") || ""),
+            contributors: String(data.get("contributors") || "")
+                .split(/\r?\n/)
+                .map(name => name.trim())
+                .filter(Boolean),
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
@@ -1847,6 +2002,17 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                 id="edit-project-category"
                                 defaultValue={dialog.project.category || ""}
                             />
+                            <label className="form-field">
+                                <span>Other contributors</span>
+                                <textarea
+                                    name="contributors"
+                                    rows="3"
+                                    maxLength="1200"
+                                    defaultValue={(dialog.project.contributors || []).join("\n")}
+                                    placeholder="One student name per line"
+                                />
+                                <small>Optional. Add up to 12 additional team members.</small>
+                            </label>
                             <label className="form-field">
                                 <span>
                                     Capstone description / about <b>Required</b>
@@ -1993,6 +2159,9 @@ function LinkRipples() {
 
 export default function App() {
     const [projects, setProjects] = useState([]);
+    const [projectCount, setProjectCount] = useState(0);
+    const [hasMoreProjects, setHasMoreProjects] = useState(false);
+    const [loadingMoreProjects, setLoadingMoreProjects] = useState(false);
     const [facultyAccounts, setFacultyAccounts] = useState([]);
     const [projectDeletionRequests, setProjectDeletionRequests] = useState([]);
     const [accountDeletionRequests, setAccountDeletionRequests] = useState([]);
@@ -2012,6 +2181,9 @@ export default function App() {
     const [toast, setToast] = useState("");
     const authCheckRef = useRef(0);
     const projectRouteTouchedRef = useRef(new URLSearchParams(window.location.search).has("project"));
+    const projectCursorRef = useRef(null);
+    const loadedMoreProjectsRef = useRef(false);
+    const loadingMoreProjectsRef = useRef(false);
 
     useLayoutEffect(() => {
         document.documentElement.dataset.theme = theme;
@@ -2079,16 +2251,36 @@ export default function App() {
 
     useEffect(() => {
         if (!db) return undefined;
+        const publicCatalog = !session?.role;
+        const projectsQuery = publicCatalog
+            ? firestoreQuery(collection(db, "projects"), orderBy("createdAt", "desc"), limit(PROJECT_PAGE_SIZE))
+            : collection(db, "projects");
+        projectCursorRef.current = null;
+        loadedMoreProjectsRef.current = false;
+        setHasMoreProjects(false);
         return onSnapshot(
-            collection(db, "projects"),
+            projectsQuery,
             snapshot => {
                 const records = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
                 records.sort((left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0));
-                setProjects(records);
+                if (publicCatalog) {
+                    if (!loadedMoreProjectsRef.current) projectCursorRef.current = snapshot.docs.at(-1) || null;
+                    setProjects(current => {
+                        const pageIds = new Set(records.map(project => project.id));
+                        return [...records, ...current.filter(project => !pageIds.has(project.id))];
+                    });
+                    setHasMoreProjects(snapshot.docs.length === PROJECT_PAGE_SIZE);
+                    getCountFromServer(collection(db, "projects"))
+                        .then(result => setProjectCount(result.data().count))
+                        .catch(error => setToast(`Could not count capstones: ${error.message}`));
+                } else {
+                    setProjects(records);
+                    setProjectCount(records.length);
+                }
             },
             error => setToast(`Could not load capstones: ${error.message}`),
         );
-    }, []);
+    }, [session?.role]);
 
     useEffect(() => {
         if (!db || session?.role !== "admin") {
@@ -2133,8 +2325,59 @@ export default function App() {
         window.addEventListener("popstate", restoreProjectRoute);
         return () => window.removeEventListener("popstate", restoreProjectRoute);
     }, [projectReturnView]);
+    useEffect(() => {
+        if (!db || !selectedProjectId) return undefined;
+        let active = true;
+        getDoc(doc(db, "projects", selectedProjectId))
+            .then(snapshot => {
+                if (!active || !snapshot.exists()) return;
+                const project = { ...snapshot.data(), id: snapshot.id };
+                setProjects(current => {
+                    const remaining = current.filter(item => item.id !== project.id);
+                    return [...remaining, project].sort(
+                        (left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0),
+                    );
+                });
+            })
+            .catch(error => {
+                if (active) setToast(`Could not load capstone: ${error.message}`);
+            });
+        return () => {
+            active = false;
+        };
+    }, [selectedProjectId]);
 
     const notify = message => setToast(message);
+    async function loadMoreProjects() {
+        if (!db || !projectCursorRef.current || loadingMoreProjectsRef.current || !hasMoreProjects) return;
+        loadingMoreProjectsRef.current = true;
+        setLoadingMoreProjects(true);
+        try {
+            const page = await getDocs(
+                firestoreQuery(
+                    collection(db, "projects"),
+                    orderBy("createdAt", "desc"),
+                    startAfter(projectCursorRef.current),
+                    limit(PROJECT_PAGE_SIZE),
+                ),
+            );
+            const records = page.docs.map(item => ({ ...item.data(), id: item.id }));
+            if (page.docs.length) projectCursorRef.current = page.docs.at(-1);
+            loadedMoreProjectsRef.current = true;
+            setProjects(current => {
+                const existingIds = new Set(current.map(project => project.id));
+                return [...current, ...records.filter(project => !existingIds.has(project.id))].sort(
+                    (left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0),
+                );
+            });
+            setHasMoreProjects(page.docs.length === PROJECT_PAGE_SIZE);
+        } catch (error) {
+            notify(`Could not load more capstones: ${error.message}`);
+        } finally {
+            loadingMoreProjectsRef.current = false;
+            setLoadingMoreProjects(false);
+        }
+    }
     function openProject(project) {
         projectRouteTouchedRef.current = true;
         setProjectReturnView(view);
@@ -2234,6 +2477,12 @@ export default function App() {
         if (!leaderName || leaderName.length > 100) return notify("Enter the capstone leader's name (up to 100 characters).");
         const category = String(data.category || "");
         if (!PROJECT_CATEGORIES.includes(category)) return notify("Choose a valid capstone category.");
+        const contributors = Array.isArray(data.contributors)
+            ? data.contributors.map(name => String(name).trim()).filter(Boolean)
+            : [];
+        if (contributors.length > 12 || contributors.some(name => name.length > 100)) {
+            return notify("Enter up to 12 contributor names, each no longer than 100 characters.");
+        }
         const repo = repositoryUrl(data.repositoryUrl);
         if (!repo) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(data.imageUrl || "").trim();
@@ -2248,6 +2497,7 @@ export default function App() {
                 ...data,
                 leaderName,
                 category,
+                contributors,
                 imageUrl: image?.url || "",
                 repositoryUrl: repo,
                 demoVideoUrl: video?.url || "",
@@ -2272,6 +2522,12 @@ export default function App() {
         if (!leaderName || leaderName.length > 100) return notify("Enter the capstone leader's name (up to 100 characters).");
         const category = String(changes.category || "");
         if (!PROJECT_CATEGORIES.includes(category)) return notify("Choose a valid capstone category.");
+        const contributors = Array.isArray(changes.contributors)
+            ? changes.contributors.map(name => String(name).trim()).filter(Boolean)
+            : [];
+        if (contributors.length > 12 || contributors.some(name => name.length > 100)) {
+            return notify("Enter up to 12 contributor names, each no longer than 100 characters.");
+        }
         if (!repositoryUrl(changes.repositoryUrl)) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(changes.imageUrl || "").trim();
         const image = imageUrl ? projectImage(imageUrl) : null;
@@ -2285,6 +2541,7 @@ export default function App() {
                 ...changes,
                 leaderName,
                 category,
+                contributors,
                 imageUrl: image?.url || "",
                 demoVideoUrl: video?.url || "",
                 updatedAt: serverTimestamp(),
@@ -2312,7 +2569,7 @@ export default function App() {
         if (!confirmed) return;
         try {
             const existing = await getDocs(
-                query(
+                firestoreQuery(
                     collection(db, "deletionRequests"),
                     where("projectId", "==", project.id),
                     where("requestedByUid", "==", session.uid),
@@ -2362,7 +2619,7 @@ export default function App() {
         }
         try {
             const existing = await getDocs(
-                query(
+                firestoreQuery(
                     collection(db, "accountDeletionRequests"),
                     where("facultyUid", "==", session.uid),
                     where("status", "==", "pending"),
@@ -2459,6 +2716,10 @@ export default function App() {
                 <ShowcaseView
                     session={session}
                     projects={projects}
+                    projectCount={projectCount}
+                    hasMoreProjects={hasMoreProjects}
+                    loadingMoreProjects={loadingMoreProjects}
+                    loadMoreProjects={loadMoreProjects}
                     query={query}
                     setQuery={setQuery}
                     navigate={navigate}
@@ -2508,6 +2769,10 @@ export default function App() {
             <ShowcaseView
                 session={session}
                 projects={projects}
+                projectCount={projectCount}
+                hasMoreProjects={hasMoreProjects}
+                loadingMoreProjects={loadingMoreProjects}
+                loadMoreProjects={loadMoreProjects}
                 query={query}
                 setQuery={setQuery}
                 navigate={navigate}
