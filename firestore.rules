@@ -64,11 +64,11 @@ service cloud.firestore {
         ))
         && request.resource.data.keys().hasAll([
           'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
-          'facultyUid', 'facultyEmail', 'facultyName', 'createdAt', 'createdLabel'
+          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'createdAt', 'createdLabel'
         ])
         && request.resource.data.keys().hasOnly([
           'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
-          'facultyUid', 'facultyEmail', 'facultyName', 'createdAt', 'createdLabel'
+          'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'createdAt', 'createdLabel'
         ])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
@@ -81,6 +81,9 @@ service cloud.firestore {
         && request.resource.data.facultyUid is string
         && request.resource.data.facultyEmail is string
         && request.resource.data.facultyName is string
+        && request.resource.data.leaderName is string
+        && request.resource.data.leaderName.size() > 0
+        && request.resource.data.leaderName.size() <= 100
         && request.resource.data.createdAt is timestamp;
       allow update, delete: if isAdmin();
     }

@@ -1,4 +1,5 @@
 import {
+    ArrowLeft,
     ArrowUpRight,
     BookOpen,
     Bot,
@@ -69,7 +70,7 @@ Answer concise questions about this application's workflow using only these fact
 - Firebase Authentication handles sign-in and faculty registration. Firestore stores user profiles and capstones.
 - Faculty access requests require an address ending in .sjc@phinmaed.com.
 - An admin reviews and approves faculty access requests in the Faculty accounts view.
-- Approved faculty can publish a capstone by providing a title, description, public image URL, and repository URL. A demo video is optional.
+- Approved faculty can publish a capstone by providing its title, capstone leader's name, description, public image URL, and repository URL. A demo video is optional.
 - Publishing a capstone makes it public immediately. The app currently has no draft or pending-capstone approval state.
 - Admins can edit or delete published capstones.
 - Pending and approved refer to faculty access accounts, not student capstones.
@@ -639,10 +640,8 @@ function ShowcaseFooter() {
     );
 }
 
-function ProjectCard({ project, canManage, canRequestDelete, index = 0, onEdit, onDelete, onRequestDelete }) {
-    const repo = repositoryUrl(project.repositoryUrl);
+function ProjectCard({ project, canManage, canRequestDelete, index = 0, onOpen, onEdit, onDelete, onRequestDelete }) {
     const image = project.imageUrl ? projectImage(project.imageUrl) : null;
-    const video = project.demoVideoUrl ? projectVideo(project.demoVideoUrl) : null;
     return (
         <motion.article
             className="project-card"
@@ -667,33 +666,13 @@ function ProjectCard({ project, canManage, canRequestDelete, index = 0, onEdit, 
                 />
             )}
             <p className="project-description">{project.description}</p>
-            {video && (
-                <div className="project-demo">
-                    {video.type === "file" ? (
-                        <video controls playsInline preload="metadata" aria-label={`${project.title} demo video`}>
-                            <source src={video.src} type={video.mimeType} />
-                        </video>
-                    ) : (
-                        <iframe
-                            src={video.src}
-                            title={`${project.title} demo video`}
-                            loading="lazy"
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                        />
-                    )}
-                </div>
-            )}
             <div className="project-card-footer">
                 <span className="project-owner">
-                    <School size={16} /> {project.facultyName || "Faculty"}
+                    <School size={16} /> {project.leaderName || project.facultyName || "Capstone leader"}
                 </span>
-                {repo && (
-                    <MaterialButton variant="text" icon={ExternalLink} href={repo} target="_blank" rel="noreferrer">
-                        Repository
-                    </MaterialButton>
-                )}
+                <MaterialButton variant="text" icon={ArrowUpRight} onClick={() => onOpen(project)}>
+                    Read capstone
+                </MaterialButton>
             </div>
             {canManage && (
                 <div className="project-admin-actions">
@@ -738,6 +717,7 @@ function ProjectGrid({
     canManage = false,
     canRequestDelete = false,
     onFacultyLogin,
+    onOpen,
     onEdit,
     onDelete,
     onRequestDelete,
@@ -746,7 +726,11 @@ function ProjectGrid({
 }) {
     const needle = query.trim().toLowerCase();
     const results = projects.filter(
-        item => !needle || `${item.title} ${item.description} ${item.facultyName || ""}`.toLowerCase().includes(needle),
+        item =>
+            !needle ||
+            `${item.title} ${item.description} ${item.leaderName || item.facultyName || ""}`
+                .toLowerCase()
+                .includes(needle),
     );
     if (!results.length)
         return (
@@ -770,6 +754,7 @@ function ProjectGrid({
                     index={index}
                     canManage={canManage}
                     canRequestDelete={canRequestDelete}
+                    onOpen={onOpen}
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onRequestDelete={onRequestDelete}
@@ -779,7 +764,146 @@ function ProjectGrid({
     );
 }
 
-function ShowcaseView({ session, projects, query, setQuery, navigate, onVoiceSearch }) {
+function ProjectArticleView({
+    project,
+    onBack,
+    canManage,
+    canRequestDelete,
+    onEdit,
+    onDelete,
+    onRequestDelete,
+}) {
+    if (!project) {
+        return (
+            <section className="empty-state project-not-found">
+                <FolderOpen className="empty-icon" size={28} />
+                <h1>Capstone not found</h1>
+                <p>This capstone may have been removed from the showcase.</p>
+                <MaterialButton variant="tonal" icon={ArrowLeft} onClick={onBack}>
+                    Back to projects
+                </MaterialButton>
+            </section>
+        );
+    }
+
+    const repo = repositoryUrl(project.repositoryUrl);
+    const image = project.imageUrl ? projectImage(project.imageUrl) : null;
+    const video = project.demoVideoUrl ? projectVideo(project.demoVideoUrl) : null;
+
+    return (
+        <article className="project-article">
+            <MaterialButton className="article-back-button" variant="tonal" icon={ArrowLeft} onClick={onBack}>
+                Back to projects
+            </MaterialButton>
+            <header className="project-article-header">
+                <p className="overline">PHINMA SJC · BSIT CAPSTONE</p>
+                <h1>{project.title}</h1>
+                <div className="project-article-byline">
+                    <span>
+                        <School size={17} /> {project.leaderName || project.facultyName || "Capstone leader"}
+                    </span>
+                    <span>
+                        <CheckCircle2 size={16} /> Published {project.createdLabel || "recently"}
+                    </span>
+                </div>
+            </header>
+
+            {image && (
+                <img
+                    className="project-article-cover"
+                    src={image.url}
+                    alt={`${project.title} cover image`}
+                    referrerPolicy="no-referrer"
+                />
+            )}
+
+            <div className="project-article-layout">
+                <section className="project-article-copy" aria-labelledby="project-article-about">
+                    <p className="overline">ABOUT THE PROJECT</p>
+                    <h2 id="project-article-about">Project overview</h2>
+                    <p>{project.description}</p>
+                </section>
+                <aside className="project-article-aside" aria-label="Project resources and actions">
+                    <p className="overline">PROJECT DETAILS</p>
+                    <dl className="project-article-details">
+                        <div>
+                            <dt>Capstone leader</dt>
+                            <dd>{project.leaderName || project.facultyName || "Capstone leader"}</dd>
+                        </div>
+                        <div>
+                            <dt>Published</dt>
+                            <dd>{project.createdLabel || "Recently added"}</dd>
+                        </div>
+                    </dl>
+                    {repo && (
+                        <MaterialButton
+                            variant="tonal"
+                            className="article-resource-button"
+                            icon={ExternalLink}
+                            href={repo}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            View repository
+                        </MaterialButton>
+                    )}
+                    {canManage && (
+                        <div className="project-article-actions">
+                            <MaterialButton variant="tonal" icon={Pencil} onClick={() => onEdit(project)}>
+                                Edit capstone
+                            </MaterialButton>
+                            <MaterialButton
+                                variant="tonal"
+                                className="m3-delete"
+                                icon={Trash2}
+                                onClick={() => onDelete(project)}
+                            >
+                                Delete capstone
+                            </MaterialButton>
+                        </div>
+                    )}
+                    {canRequestDelete && (
+                        <div className="project-article-actions">
+                            <MaterialButton
+                                variant="tonal"
+                                className="m3-delete"
+                                icon={Trash2}
+                                onClick={() => onRequestDelete(project)}
+                            >
+                                Request deletion
+                            </MaterialButton>
+                        </div>
+                    )}
+                </aside>
+            </div>
+
+            {video && (
+                <section className="project-article-demo" aria-labelledby="project-article-demo-title">
+                    <p className="overline">PROJECT DEMONSTRATION</p>
+                    <h2 id="project-article-demo-title">See it in action</h2>
+                    <div className="project-demo">
+                        {video.type === "file" ? (
+                            <video controls playsInline preload="metadata" aria-label={`${project.title} demo video`}>
+                                <source src={video.src} type={video.mimeType} />
+                            </video>
+                        ) : (
+                            <iframe
+                                src={video.src}
+                                title={`${project.title} demo video`}
+                                loading="lazy"
+                                referrerPolicy="strict-origin-when-cross-origin"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        )}
+                    </div>
+                </section>
+            )}
+        </article>
+    );
+}
+
+function ShowcaseView({ session, projects, query, setQuery, navigate, onOpenProject, onVoiceSearch }) {
     return (
         <>
             <PageHeader
@@ -825,6 +949,7 @@ function ShowcaseView({ session, projects, query, setQuery, navigate, onVoiceSea
                     projects={projects}
                     query={query}
                     session={session}
+                    onOpen={onOpenProject}
                     onFacultyLogin={() => navigate("faculty-login")}
                 />
             </section>
@@ -846,7 +971,7 @@ function StatCard({ label, value, Icon, detail }) {
     );
 }
 
-function OverviewView({ session, projects, facultyAccounts, navigate }) {
+function OverviewView({ session, projects, facultyAccounts, navigate, onOpenProject }) {
     const admin = session.role === "admin";
     const owned = admin ? projects : projects.filter(project => project.facultyEmail === session.email);
     const pending = facultyAccounts.filter(account => account.status === "pending");
@@ -900,15 +1025,20 @@ function OverviewView({ session, projects, facultyAccounts, navigate }) {
                     {owned.length ? (
                         <div className="compact-list">
                             {owned.slice(0, 3).map(item => (
-                                <div className="compact-project" key={item.id}>
+                                <button
+                                    className="compact-project"
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => onOpenProject(item)}
+                                >
                                     <span className="compact-project-icon">
                                         <FileText size={18} />
                                     </span>
                                     <span>
                                         <strong>{item.title}</strong>
-                                        <small>{item.facultyName} · Published</small>
+                                        <small>{item.leaderName || item.facultyName || "Capstone leader"} · Published</small>
                                     </span>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     ) : (
@@ -940,6 +1070,7 @@ function UploadView({ session, publish }) {
         const data = new FormData(event.currentTarget);
         publish({
             title: String(data.get("title")).trim(),
+            leaderName: String(data.get("leaderName")).trim(),
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
@@ -965,6 +1096,12 @@ function UploadView({ session, publish }) {
                             Title <b>Required</b>
                         </span>
                         <input name="title" required maxLength="120" placeholder="e.g. Campus Resource Finder" />
+                    </label>
+                    <label className="form-field">
+                        <span>
+                            Capstone leader's name <b>Required</b>
+                        </span>
+                        <input name="leaderName" required maxLength="100" placeholder="Student team leader's name" />
                     </label>
                     <label className="form-field">
                         <span>
@@ -1039,7 +1176,7 @@ function UploadView({ session, publish }) {
     );
 }
 
-function ManageProjectsView({ session, projects, query, setQuery, openDialog, onVoiceSearch }) {
+function ManageProjectsView({ session, projects, query, setQuery, openDialog, onOpenProject, onVoiceSearch }) {
     return (
         <>
             <PageHeader
@@ -1066,6 +1203,7 @@ function ManageProjectsView({ session, projects, query, setQuery, openDialog, on
                 projects={projects}
                 query={query}
                 canManage
+                onOpen={onOpenProject}
                 onEdit={project => openDialog("edit", project)}
                 onDelete={project => openDialog("delete", project)}
                 session={session}
@@ -1074,7 +1212,7 @@ function ManageProjectsView({ session, projects, query, setQuery, openDialog, on
     );
 }
 
-function StudentCapstonesView({ session, projects, requestDeletion, requestAccountDeletion }) {
+function StudentCapstonesView({ session, projects, requestDeletion, requestAccountDeletion, onOpenProject }) {
     const ownProjects = projects.filter(
         project => project.facultyUid === session.uid || project.facultyEmail === session.email,
     );
@@ -1083,14 +1221,14 @@ function StudentCapstonesView({ session, projects, requestDeletion, requestAccou
         <>
             <PageHeader
                 title="Student Capstones"
-                subtitle="Manage your published capstones and browse other faculty projects."
+                subtitle="Manage student projects on behalf of your students and browse other faculty projects."
                 session={session}
             />
             <section className="showcase-section">
                 <div className="section-toolbar">
                     <div>
-                        <p className="overline">YOUR PUBLISHED WORK</p>
-                        <h2>My capstones</h2>
+                        <p className="overline">STUDENT PROJECTS</p>
+                        <h2>Student capstones</h2>
                     </div>
                     <MaterialButton
                         variant="tonal"
@@ -1105,9 +1243,10 @@ function StudentCapstonesView({ session, projects, requestDeletion, requestAccou
                     projects={ownProjects}
                     session={session}
                     canRequestDelete
+                    onOpen={onOpenProject}
                     onRequestDelete={requestDeletion}
-                    emptyTitle="You haven't published a capstone yet"
-                    emptyMessage="Published capstones you own will appear here."
+                    emptyTitle="No student capstones published yet"
+                    emptyMessage="Student projects you manage will appear here."
                 />
             </section>
             <section className="showcase-section">
@@ -1120,6 +1259,7 @@ function StudentCapstonesView({ session, projects, requestDeletion, requestAccou
                 <ProjectGrid
                     projects={otherFacultyProjects}
                     session={session}
+                    onOpen={onOpenProject}
                     emptyTitle="No other capstones yet"
                     emptyMessage="Capstones published by other faculty will appear here."
                 />
@@ -1570,6 +1710,7 @@ function ProjectDialog({ dialog, close, save, remove }) {
         const data = new FormData(event.currentTarget);
         save(dialog.project.id, {
             title: String(data.get("title")).trim(),
+            leaderName: String(data.get("leaderName")).trim(),
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
@@ -1606,6 +1747,17 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                     Title <b>Required</b>
                                 </span>
                                 <input name="title" required maxLength="120" defaultValue={dialog.project.title} />
+                            </label>
+                            <label className="form-field">
+                                <span>
+                                    Capstone leader's name <b>Required</b>
+                                </span>
+                                <input
+                                    name="leaderName"
+                                    required
+                                    maxLength="100"
+                                    defaultValue={dialog.project.leaderName || dialog.project.facultyName || ""}
+                                />
                             </label>
                             <label className="form-field">
                                 <span>
@@ -1757,7 +1909,13 @@ export default function App() {
     const [projectDeletionRequests, setProjectDeletionRequests] = useState([]);
     const [accountDeletionRequests, setAccountDeletionRequests] = useState([]);
     const [session, setSession] = useState(null);
-    const [view, setView] = useState("showcase");
+    const [view, setView] = useState(() =>
+        new URLSearchParams(window.location.search).has("project") ? "project" : "showcase",
+    );
+    const [selectedProjectId, setSelectedProjectId] = useState(() =>
+        new URLSearchParams(window.location.search).get("project"),
+    );
+    const [projectReturnView, setProjectReturnView] = useState("showcase");
     const [theme, setTheme] = useState(readTheme);
     const [authRole, setAuthRole] = useState("faculty");
     const [query, setQuery] = useState("");
@@ -1765,6 +1923,7 @@ export default function App() {
     const [dialog, setDialog] = useState(null);
     const [toast, setToast] = useState("");
     const authCheckRef = useRef(0);
+    const projectRouteTouchedRef = useRef(new URLSearchParams(window.location.search).has("project"));
 
     useLayoutEffect(() => {
         document.documentElement.dataset.theme = theme;
@@ -1789,7 +1948,7 @@ export default function App() {
             const checkId = ++authCheckRef.current;
             if (!user) {
                 setSession(null);
-                setView("showcase");
+                setView(new URLSearchParams(window.location.search).has("project") ? "project" : "showcase");
                 return;
             }
 
@@ -1811,7 +1970,12 @@ export default function App() {
                     return;
                 }
                 setSession(profile);
-                setView("overview");
+                if (
+                    !projectRouteTouchedRef.current &&
+                    !new URLSearchParams(window.location.search).has("project")
+                ) {
+                    setView("overview");
+                }
             } catch (error) {
                 if (!active || checkId !== authCheckRef.current) return;
                 setSession(null);
@@ -1871,9 +2035,39 @@ export default function App() {
         const timer = window.setTimeout(() => setToast(""), 3200);
         return () => window.clearTimeout(timer);
     }, [toast]);
+    useEffect(() => {
+        function restoreProjectRoute() {
+            const projectId = new URLSearchParams(window.location.search).get("project");
+            setSelectedProjectId(projectId);
+            if (projectId) setView("project");
+            else setView(current => (current === "project" ? projectReturnView : current));
+        }
+        window.addEventListener("popstate", restoreProjectRoute);
+        return () => window.removeEventListener("popstate", restoreProjectRoute);
+    }, [projectReturnView]);
 
     const notify = message => setToast(message);
+    function openProject(project) {
+        projectRouteTouchedRef.current = true;
+        setProjectReturnView(view);
+        setSelectedProjectId(project.id);
+        const url = new URL(window.location.href);
+        url.searchParams.set("project", project.id);
+        window.history.pushState({ projectId: project.id }, "", url);
+        setView("project");
+    }
+    function backFromProject() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("project");
+        window.history.replaceState(window.history.state, "", url);
+        setSelectedProjectId(null);
+        setView(projectReturnView);
+    }
     function navigate(destination) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("project");
+        window.history.replaceState(window.history.state, "", url);
+        setSelectedProjectId(null);
         if (destination === "portal" || destination === "faculty-login" || destination === "admin-login") {
             setAuthRole(destination === "admin-login" ? "admin" : "faculty");
             setView("login");
@@ -1948,6 +2142,8 @@ export default function App() {
     }
     async function publish(data) {
         if (!db || !session) return notify("Sign in with an approved account to publish a capstone.");
+        const leaderName = String(data.leaderName || "").trim();
+        if (!leaderName || leaderName.length > 100) return notify("Enter the capstone leader's name (up to 100 characters).");
         const repo = repositoryUrl(data.repositoryUrl);
         if (!repo) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(data.imageUrl || "").trim();
@@ -1960,6 +2156,7 @@ export default function App() {
         try {
             await addDoc(collection(db, "projects"), {
                 ...data,
+                leaderName,
                 imageUrl: image?.url || "",
                 repositoryUrl: repo,
                 demoVideoUrl: video?.url || "",
@@ -1980,6 +2177,8 @@ export default function App() {
     }
     async function saveProject(id, changes) {
         if (!db) return notify("Firebase is not configured.");
+        const leaderName = String(changes.leaderName || "").trim();
+        if (!leaderName || leaderName.length > 100) return notify("Enter the capstone leader's name (up to 100 characters).");
         if (!repositoryUrl(changes.repositoryUrl)) return notify("Enter a valid HTTP or HTTPS repository URL.");
         const imageUrl = String(changes.imageUrl || "").trim();
         const image = imageUrl ? projectImage(imageUrl) : null;
@@ -1991,6 +2190,7 @@ export default function App() {
         try {
             await updateDoc(doc(db, "projects", id), {
                 ...changes,
+                leaderName,
                 imageUrl: image?.url || "",
                 demoVideoUrl: video?.url || "",
                 updatedAt: serverTimestamp(),
@@ -2006,6 +2206,7 @@ export default function App() {
         try {
             await deleteDoc(doc(db, "projects", id));
             setDialog(null);
+            if (selectedProjectId === id) backFromProject();
             notify("Capstone deleted from the showcase.");
         } catch (error) {
             notify(`Could not delete capstone: ${error.message}`);
@@ -2131,7 +2332,23 @@ export default function App() {
     }
 
     let content;
-    if (view === "assistant") content = <AssistantView session={session} projects={projects} />;
+    if (view === "project") {
+        const project = projects.find(item => item.id === selectedProjectId);
+        const canRequestDelete =
+            session?.role === "faculty" &&
+            (project?.facultyUid === session.uid || project?.facultyEmail === session.email);
+        content = (
+            <ProjectArticleView
+                project={project}
+                onBack={backFromProject}
+                canManage={session?.role === "admin"}
+                canRequestDelete={canRequestDelete}
+                onEdit={item => setDialog({ kind: "edit", project: item })}
+                onDelete={item => setDialog({ kind: "delete", project: item })}
+                onRequestDelete={requestProjectDeletion}
+            />
+        );
+    } else if (view === "assistant") content = <AssistantView session={session} projects={projects} />;
     else if (!session)
         content =
             view === "login" ? (
@@ -2151,6 +2368,7 @@ export default function App() {
                     query={query}
                     setQuery={setQuery}
                     navigate={navigate}
+                    onOpenProject={openProject}
                     onVoiceSearch={() => notify("Voice search is not available in this browser.")}
                 />
             );
@@ -2176,6 +2394,7 @@ export default function App() {
                 query={query}
                 setQuery={setQuery}
                 openDialog={(kind, project) => setDialog({ kind, project })}
+                onOpenProject={openProject}
                 onVoiceSearch={() => notify("Voice search is not available in this browser.")}
             />
         );
@@ -2187,6 +2406,7 @@ export default function App() {
                 projects={projects}
                 requestDeletion={requestProjectDeletion}
                 requestAccountDeletion={requestAccountDeletion}
+                onOpenProject={openProject}
             />
         );
     else if (view === "showcase")
@@ -2197,12 +2417,19 @@ export default function App() {
                 query={query}
                 setQuery={setQuery}
                 navigate={navigate}
+                    onOpenProject={openProject}
                 onVoiceSearch={() => notify("Voice search is not available in this browser.")}
             />
         );
     else
         content = (
-            <OverviewView session={session} projects={projects} facultyAccounts={facultyAccounts} navigate={navigate} />
+            <OverviewView
+                session={session}
+                projects={projects}
+                facultyAccounts={facultyAccounts}
+                navigate={navigate}
+                onOpenProject={openProject}
+            />
         );
 
     const routeKey = `${session?.role || "public"}-${view}-${authRole}`;
@@ -2210,7 +2437,7 @@ export default function App() {
         <div className="app-shell">
             <NavRail
                 session={session}
-                view={view}
+                view={view === "project" ? projectReturnView : view}
                 navigate={navigate}
                 signOut={signOut}
                 theme={theme}

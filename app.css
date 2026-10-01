@@ -840,6 +840,7 @@ md-menu.assistant-model-menu {
     width: 100%;
     aspect-ratio: 16 / 9;
     margin-top: 14px;
+    margin-bottom: 14px;
     display: block;
     object-fit: cover;
     border-radius: 12px;
@@ -993,10 +994,21 @@ md-menu.assistant-model-menu {
 }
 .compact-project {
     min-height: 64px;
+    width: 100%;
+    padding: 0;
     display: flex;
     align-items: center;
     gap: 11px;
+    border: 0;
     border-top: 1px solid var(--surface-low);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.compact-project:hover strong {
+    color: var(--primary);
 }
 .compact-project-icon {
     width: 34px;
@@ -1025,6 +1037,41 @@ md-menu.assistant-model-menu {
     margin: 15px 0 3px;
     color: var(--muted);
     font-size: 12px;
+}
+.project-article-byline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+.project-article-aside {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+}
+.project-article-actions {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+}
+.project-article-demo {
+    margin-top: 32px;
+}
+@media (min-width: 1001px) {
+    .project-article {
+        padding-inline: clamp(20px, 2.5vw, 36px);
+    }
+}
+.article-back-button {
+    margin-bottom: 16px;
+}
+@media (max-width: 900px) {
+    .project-article-layout {
+        grid-template-columns: minmax(0, 1fr) 250px;
+        gap: 26px;
+    }
 }
 .action-panel {
     background: var(--surface-high);
@@ -1658,6 +1705,32 @@ md-menu.assistant-model-menu {
     }
     .project-admin-actions {
         flex-wrap: wrap;
+    }
+    .project-article-header h1 {
+        font-size: 32px;
+    }
+    .project-article-byline {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 9px;
+    }
+    .project-article-cover {
+        max-height: 360px;
+        aspect-ratio: 16 / 10;
+    }
+    .project-article-layout {
+        margin-top: 26px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
+    }
+    .project-article-copy > p:last-child {
+        font-size: 15px;
+    }
+    .project-article-aside {
+        padding: 18px;
+    }
+    .project-article-demo {
+        margin-top: 32px;
     }
     .surface-panel {
         padding: 18px;
