@@ -455,7 +455,7 @@ textarea:focus-visible {
     display: flex;
     align-items: center;
     gap: 12px;
-    border-radius: 28px;
+    border-radius: 18px;
     background: var(--surface-low);
     color: var(--muted);
     transform: scaleX(1);
@@ -517,7 +517,7 @@ textarea:focus-visible {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 26px;
-    border-radius: 24px 24px 24px 7px;
+    border-radius: 18px;
     background: var(--surface-low);
 }
 .platform-intro-copy {
@@ -545,7 +545,7 @@ textarea:focus-visible {
     display: flex;
     align-items: center;
     gap: 10px;
-    border-radius: 18px 18px 18px 5px;
+    border-radius: 18px;
     background: var(--accent-soft);
     color: var(--primary-deep);
     font-size: 10px;
@@ -908,7 +908,7 @@ md-menu.assistant-model-menu {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    border-radius: 24px 24px 24px 7px;
+    border-radius: 18px;
     background: var(--surface-low);
     text-align: center;
 }
@@ -918,7 +918,7 @@ md-menu.assistant-model-menu {
     margin-bottom: 12px;
     display: grid;
     place-items: center;
-    border-radius: 19px 19px 19px 6px;
+    border-radius: 18px;
     background: var(--accent-soft);
     color: var(--primary);
     font-size: 27px;
