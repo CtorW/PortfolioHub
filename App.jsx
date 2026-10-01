@@ -65,6 +65,7 @@ import {
 import { auth, db, firebaseReady } from "./firebase";
 
 const OLLAMA_BASE_URL = String(import.meta.env.VITE_OLLAMA_BASE_URL || "").trim().replace(/\/+$/, "");
+const AUTO_APPROVE_FACULTY = String(import.meta.env.VITE_AUTO_APPROVE_FACULTY || "").trim().toLowerCase() === "true";
 const PROJECT_CATEGORIES = ["Systems", "AI", "Applications", "Websites"];
 const PROJECT_FILTERS = ["All", ...PROJECT_CATEGORIES];
 const PROJECT_PAGE_SIZE = 24;
@@ -2219,7 +2220,9 @@ export default function App() {
                     setSession(null);
                     return;
                 }
-                if (profile.status !== "approved") {
+
+                const resolvedStatus = profile.status || (AUTO_APPROVE_FACULTY && profile.role === "faculty" ? "approved" : null);
+                if (resolvedStatus !== "approved") {
                     setSession(null);
                     setToast(
                         profile.status === "rejected"
@@ -2229,7 +2232,17 @@ export default function App() {
                     await firebaseSignOut(auth);
                     return;
                 }
-                setSession(profile);
+
+                const normalizedProfile =
+                    resolvedStatus === "approved" && profile.status !== "approved"
+                        ? { ...profile, status: "approved" }
+                        : profile;
+
+                if (resolvedStatus === "approved" && profile.status !== "approved" && db) {
+                    await updateDoc(doc(db, "faculty", user.uid), { status: "approved", updatedAt: serverTimestamp() });
+                }
+
+                setSession(normalizedProfile);
                 if (
                     !projectRouteTouchedRef.current &&
                     !new URLSearchParams(window.location.search).has("project")
@@ -2453,15 +2466,20 @@ export default function App() {
         let credential;
         try {
             credential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+            const nextStatus = AUTO_APPROVE_FACULTY ? "approved" : "pending";
             await setDoc(doc(db, "faculty", credential.user.uid), {
                 name,
                 email: trimmedEmail,
                 role: "faculty",
-                status: "pending",
+                status: nextStatus,
                 createdAt: serverTimestamp(),
             });
-            await firebaseSignOut(auth);
-            notify("Faculty account created. You can sign in after an admin approves it.");
+            if (AUTO_APPROVE_FACULTY) {
+                notify("Faculty account created and approved for local capstone uploads.");
+            } else {
+                await firebaseSignOut(auth);
+                notify("Faculty account created. You can sign in after an admin approves it.");
+            }
             return true;
         } catch (error) {
             if (credential?.user && auth.currentUser?.uid === credential.user.uid) {
