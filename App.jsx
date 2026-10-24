@@ -311,7 +311,7 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
             >
                 <span className="brand-mark" aria-hidden="true">
                     <svg className="brand-mark-shape" viewBox="0 0 100 100" focusable="false">
-                        <path d="M50 3 C55 3 57 8 62 8 C67 8 70 4 74 8 C78 12 76 17 80 21 C84 25 90 23 93 28 C96 33 92 38 94 43 C96 48 101 50 99 55 C97 60 92 61 92 66 C92 71 97 75 93 79 C89 83 84 81 80 85 C76 89 78 95 73 97 C68 99 63 95 58 96 C53 97 51 102 46 99 C41 96 41 91 36 90 C31 89 26 94 22 90 C18 86 20 81 16 77 C12 73 6 75 4 70 C2 65 6 60 5 55 C4 50 -1 48 1 43 C3 38 8 37 9 32 C10 27 6 22 10 18 C14 14 19 16 23 12 C27 8 25 2 30 1 C35 0 39 4 44 4 C47 4 48 3 50 3 Z" />
+                        <path d="M50 12 C62 12 64 3 75 3 C87 3 97 13 97 25 C97 37 88 38 88 50 C88 62 97 64 97 75 C97 87 87 97 75 97 C63 97 62 88 50 88 C38 88 36 97 25 97 C13 97 3 87 3 75 C3 63 12 62 12 50 C12 38 3 36 3 25 C3 13 13 3 25 3 C37 3 38 12 50 12 Z" />
                     </svg>
                     <span className="brand-mark-text">PH</span>
                 </span>
@@ -674,7 +674,7 @@ function ShowcaseFooter() {
                     <a className="footer-brand" href="#showcase">
                         <span className="brand-mark" aria-hidden="true">
                             <svg className="brand-mark-shape" viewBox="0 0 100 100" focusable="false">
-                                <path d="M50 3 C55 3 57 8 62 8 C67 8 70 4 74 8 C78 12 76 17 80 21 C84 25 90 23 93 28 C96 33 92 38 94 43 C96 48 101 50 99 55 C97 60 92 61 92 66 C92 71 97 75 93 79 C89 83 84 81 80 85 C76 89 78 95 73 97 C68 99 63 95 58 96 C53 97 51 102 46 99 C41 96 41 91 36 90 C31 89 26 94 22 90 C18 86 20 81 16 77 C12 73 6 75 4 70 C2 65 6 60 5 55 C4 50 -1 48 1 43 C3 38 8 37 9 32 C10 27 6 22 10 18 C14 14 19 16 23 12 C27 8 25 2 30 1 C35 0 39 4 44 4 C47 4 48 3 50 3 Z" />
+                                <path d="M50 12 C62 12 64 3 75 3 C87 3 97 13 97 25 C97 37 88 38 88 50 C88 62 97 64 97 75 C97 87 87 97 75 97 C63 97 62 88 50 88 C38 88 36 97 25 97 C13 97 3 87 3 75 C3 63 12 62 12 50 C12 38 3 36 3 25 C3 13 13 3 25 3 C37 3 38 12 50 12 Z" />
                             </svg>
                             <span className="brand-mark-text">PH</span>
                         </span>
