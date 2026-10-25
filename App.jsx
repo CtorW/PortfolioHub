@@ -69,6 +69,15 @@ const AUTO_APPROVE_FACULTY = String(import.meta.env.VITE_AUTO_APPROVE_FACULTY ||
 const PROJECT_CATEGORIES = ["Systems", "AI", "Applications", "Websites"];
 const PROJECT_FILTERS = ["All", ...PROJECT_CATEGORIES];
 const PROJECT_PAGE_SIZE = 24;
+const COLOR_PALETTES = [
+    { id: "green", name: "Meadow", swatch: "#97d945" },
+    { id: "terracotta", name: "Terracotta", swatch: "#b33b15" },
+    { id: "blue", name: "Sky", swatch: "#769cdf" },
+    { id: "gold", name: "Sunflower", swatch: "#ffde3f" },
+    { id: "rose", name: "Rose", swatch: "#f59bb7" },
+    { id: "violet", name: "Orchid", swatch: "#ea44ee" },
+    { id: "copper", name: "Copper", swatch: "#8a4c14" },
+];
 function ollamaBaseUrl() {
     if (OLLAMA_BASE_URL) return OLLAMA_BASE_URL;
     const protocol = window.location.protocol === "https:" ? "https:" : "http:";
@@ -103,6 +112,15 @@ function readTheme() {
         return localStorage.getItem("portfolihub-theme") === "dark" ? "dark" : "light";
     } catch {
         return "light";
+    }
+}
+
+function readPalette() {
+    try {
+        const savedPalette = localStorage.getItem("portfolihub-palette");
+        return COLOR_PALETTES.some(palette => palette.id === savedPalette) ? savedPalette : "green";
+    } catch {
+        return "green";
     }
 }
 
@@ -278,7 +296,7 @@ function PageHeader({ title, subtitle, session }) {
     );
 }
 
-function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
+function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSettings }) {
     const publicItems = [
         ["showcase", "Showcase", PanelsTopLeft],
         ["portal", "Portal", LogIn],
@@ -341,6 +359,18 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme }) {
                 })}
             </nav>
             <div className={`rail-bottom ${session ? "has-signout" : ""}`}>
+                <button
+                    type="button"
+                    className="rail-link rail-settings"
+                    aria-label="Settings"
+                    title="Settings"
+                    onClick={openSettings}
+                >
+                    <span className="rail-link-icon">
+                        <Settings2 className="rail-icon" size={22} />
+                    </span>
+                    <span>Settings</span>
+                </button>
                 <button
                     type="button"
                     className="rail-link rail-theme-toggle"
@@ -2109,6 +2139,118 @@ function ProjectDialog({ dialog, close, save, remove }) {
     );
 }
 
+function SettingsDialog({ close, theme, setTheme, palette, setPalette }) {
+    function handleRadioKeyDown(event) {
+        const keyDirections = {
+            ArrowDown: 1,
+            ArrowRight: 1,
+            ArrowUp: -1,
+            ArrowLeft: -1,
+        };
+        const options = Array.from(event.currentTarget.querySelectorAll('[role="radio"]'));
+        const currentIndex = options.indexOf(event.target.closest('[role="radio"]'));
+        if (keyDirections[event.key] === undefined || currentIndex < 0 || options.length === 0) return;
+
+        const nextIndex = (currentIndex + keyDirections[event.key] + options.length) % options.length;
+        options[nextIndex].focus();
+        options[nextIndex].click();
+        event.preventDefault();
+    }
+
+    return (
+        <motion.div
+            className="react-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={event => {
+                if (event.target === event.currentTarget) close();
+            }}
+        >
+            <motion.section
+                className="react-modal-content settings-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="settings-heading"
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                onKeyDown={event => {
+                    if (event.key === "Escape") close();
+                }}
+                onMouseDown={event => event.stopPropagation()}
+            >
+                <div className="dialog-heading">
+                    <span className="step-pill">PERSONALIZE</span>
+                    <MaterialIconButton icon={X} label="Close settings" onClick={close} autoFocus />
+                </div>
+                <h2 id="settings-heading">Settings</h2>
+                <section className="settings-group" aria-labelledby="settings-appearance-heading">
+                    <h3 id="settings-appearance-heading">Appearance</h3>
+                    <p>Choose the look that feels right for you.</p>
+                    <div
+                        className="settings-theme-options"
+                        role="radiogroup"
+                        aria-label="Color mode"
+                        onKeyDown={handleRadioKeyDown}
+                    >
+                        {[
+                            ["light", "Light", Sun],
+                            ["dark", "Dark", Moon],
+                        ].map(([value, label, Icon]) => (
+                            <button
+                                key={value}
+                                type="button"
+                                className="settings-theme-option"
+                                role="radio"
+                                aria-checked={theme === value}
+                                tabIndex={theme === value ? 0 : -1}
+                                onClick={() => setTheme(value)}
+                            >
+                                <Icon size={18} aria-hidden="true" />
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+                <section className="settings-group" aria-labelledby="settings-palette-heading">
+                    <h3 id="settings-palette-heading">Color palette</h3>
+                    <p id="settings-palette-description">
+                        Pick a Material-inspired accent palette. Your choice is saved on this device.
+                    </p>
+                    <div
+                        className="settings-palette-options"
+                        role="radiogroup"
+                        aria-labelledby="settings-palette-heading"
+                        aria-describedby="settings-palette-description"
+                        onKeyDown={handleRadioKeyDown}
+                    >
+                        {COLOR_PALETTES.map(option => (
+                            <button
+                                key={option.id}
+                                type="button"
+                                className="settings-palette-option"
+                                role="radio"
+                                aria-checked={palette === option.id}
+                                tabIndex={palette === option.id ? 0 : -1}
+                                onClick={() => setPalette(option.id)}
+                            >
+                                <span
+                                    className="settings-palette-swatch"
+                                    style={{ "--palette-swatch": option.swatch }}
+                                    aria-hidden="true"
+                                >
+                                    <Check size={16} />
+                                </span>
+                                <span>{option.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+            </motion.section>
+        </motion.div>
+    );
+}
+
 function LinkRipples() {
     useEffect(() => {
         function createRipple(target, x, y) {
@@ -2187,9 +2329,11 @@ export default function App() {
     );
     const [projectReturnView, setProjectReturnView] = useState("showcase");
     const [theme, setTheme] = useState(readTheme);
+    const [palette, setPalette] = useState(readPalette);
     const [authRole, setAuthRole] = useState("faculty");
     const [query, setQuery] = useState("");
     const [requestOpen, setRequestOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [dialog, setDialog] = useState(null);
     const [toast, setToast] = useState("");
     const authCheckRef = useRef(0);
@@ -2200,15 +2344,19 @@ export default function App() {
 
     useLayoutEffect(() => {
         document.documentElement.dataset.theme = theme;
-        document
-            .querySelector('meta[name="theme-color"]')
-            ?.setAttribute("content", theme === "dark" ? "#11150b" : "#f7fbea");
-    }, [theme]);
+        document.documentElement.dataset.palette = palette;
+        const surfaceColor = getComputedStyle(document.documentElement).getPropertyValue("--surface").trim();
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", surfaceColor);
+    }, [theme, palette]);
     useEffect(() => {
         try {
             localStorage.setItem("portfolihub-theme", theme);
-        } catch {}
-    }, [theme]);
+            localStorage.setItem("portfolihub-palette", palette);
+        } catch (error) {
+            console.error("Unable to save appearance preferences.", error);
+            setToast("Appearance preferences could not be saved in this browser.");
+        }
+    }, [theme, palette]);
 
     useEffect(() => {
         if (!auth || !db) {
@@ -2831,6 +2979,7 @@ export default function App() {
                 signOut={signOut}
                 theme={theme}
                 toggleTheme={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+                openSettings={() => setSettingsOpen(true)}
             />
             <main className="app-main">
                 <AnimatePresence mode="wait" initial={false}>
@@ -2854,6 +3003,17 @@ export default function App() {
                         close={() => setDialog(null)}
                         save={saveProject}
                         remove={deleteProject}
+                    />
+                )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {settingsOpen && (
+                    <SettingsDialog
+                        close={() => setSettingsOpen(false)}
+                        theme={theme}
+                        setTheme={setTheme}
+                        palette={palette}
+                        setPalette={setPalette}
                     />
                 )}
             </AnimatePresence>
