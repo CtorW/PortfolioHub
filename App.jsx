@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Hct, SchemeExpressive, argbFromHex, hexFromArgb } from "@material/material-color-utilities";
 import {
     createUserWithEmailAndPassword,
     deleteUser,
@@ -70,14 +71,96 @@ const PROJECT_CATEGORIES = ["Systems", "AI", "Applications", "Websites"];
 const PROJECT_FILTERS = ["All", ...PROJECT_CATEGORIES];
 const PROJECT_PAGE_SIZE = 24;
 const COLOR_PALETTES = [
-    { id: "green", name: "Meadow", swatch: "#97d945" },
-    { id: "terracotta", name: "Terracotta", swatch: "#b33b15" },
-    { id: "blue", name: "Sky", swatch: "#769cdf" },
-    { id: "gold", name: "Sunflower", swatch: "#ffde3f" },
-    { id: "rose", name: "Rose", swatch: "#f59bb7" },
-    { id: "violet", name: "Orchid", swatch: "#ea44ee" },
-    { id: "copper", name: "Copper", swatch: "#8a4c14" },
+    { id: "green", name: "Meadow", seed: "#97d945" },
+    { id: "terracotta", name: "Terracotta", seed: "#b33b15" },
+    { id: "blue", name: "Sky", seed: "#769cdf" },
+    { id: "gold", name: "Sunflower", seed: "#ffde3f" },
+    { id: "rose", name: "Rose", seed: "#f59bb7" },
+    { id: "violet", name: "Orchid", seed: "#ea44ee" },
+    { id: "copper", name: "Copper", seed: "#8a4c14" },
 ];
+const MATERIAL_COLOR_ROLES = [
+    "primary",
+    "onPrimary",
+    "primaryContainer",
+    "onPrimaryContainer",
+    "primaryFixed",
+    "primaryFixedDim",
+    "onPrimaryFixed",
+    "onPrimaryFixedVariant",
+    "inversePrimary",
+    "secondary",
+    "onSecondary",
+    "secondaryContainer",
+    "onSecondaryContainer",
+    "secondaryFixed",
+    "secondaryFixedDim",
+    "onSecondaryFixed",
+    "onSecondaryFixedVariant",
+    "tertiary",
+    "onTertiary",
+    "tertiaryContainer",
+    "onTertiaryContainer",
+    "tertiaryFixed",
+    "tertiaryFixedDim",
+    "onTertiaryFixed",
+    "onTertiaryFixedVariant",
+    "error",
+    "onError",
+    "errorContainer",
+    "onErrorContainer",
+    "background",
+    "onBackground",
+    "surface",
+    "onSurface",
+    "surfaceDim",
+    "surfaceBright",
+    "surfaceContainerLowest",
+    "surfaceContainerLow",
+    "surfaceContainer",
+    "surfaceContainerHigh",
+    "surfaceContainerHighest",
+    "surfaceVariant",
+    "onSurfaceVariant",
+    "inverseSurface",
+    "inverseOnSurface",
+    "outline",
+    "outlineVariant",
+    "shadow",
+    "scrim",
+    "surfaceTint",
+];
+
+function makeExpressiveScheme(paletteId, theme) {
+    const palette = COLOR_PALETTES.find(option => option.id === paletteId) || COLOR_PALETTES[0];
+    return new SchemeExpressive(Hct.fromInt(argbFromHex(palette.seed)), theme === "dark", 0);
+}
+
+function expressiveSchemeColor(color, scheme, isDark) {
+    if (color === 0xffffffff) return scheme.neutralPalette.tone(98);
+    if (color === 0xff000000) return scheme.neutralPalette.tone(isDark ? 8 : 15);
+    return color;
+}
+
+function expressivePalettePreview(paletteId, theme) {
+    const scheme = makeExpressiveScheme(paletteId, theme);
+    const isDark = theme === "dark";
+    return {
+        color: hexFromArgb(expressiveSchemeColor(scheme.primary, scheme, isDark)),
+        onColor: hexFromArgb(expressiveSchemeColor(scheme.onPrimary, scheme, isDark)),
+    };
+}
+
+function expressiveColorScheme(paletteId, theme) {
+    const isDark = theme === "dark";
+    const scheme = makeExpressiveScheme(paletteId, theme);
+    return Object.fromEntries(
+        MATERIAL_COLOR_ROLES.map(role => [
+            `--md-sys-color-${role.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`)}`,
+            hexFromArgb(expressiveSchemeColor(scheme[role], scheme, isDark)),
+        ]),
+    );
+}
 function ollamaBaseUrl() {
     if (OLLAMA_BASE_URL) return OLLAMA_BASE_URL;
     const protocol = window.location.protocol === "https:" ? "https:" : "http:";
@@ -2230,7 +2313,7 @@ function SettingsDialog({ close, theme, setTheme, palette, setPalette }) {
                 <section className="settings-group" aria-labelledby="settings-palette-heading">
                     <h3 id="settings-palette-heading">Color palette</h3>
                     <p id="settings-palette-description">
-                        Pick a Material-inspired accent palette. Your choice is saved on this device.
+                        Choose a dynamic Material 3 Expressive palette. Your choice is saved on this device.
                     </p>
                     <div
                         className="settings-palette-options"
@@ -2239,26 +2322,32 @@ function SettingsDialog({ close, theme, setTheme, palette, setPalette }) {
                         aria-describedby="settings-palette-description"
                         onKeyDown={handleRadioKeyDown}
                     >
-                        {COLOR_PALETTES.map(option => (
-                            <button
-                                key={option.id}
-                                type="button"
-                                className="settings-palette-option"
-                                role="radio"
-                                aria-checked={palette === option.id}
-                                tabIndex={palette === option.id ? 0 : -1}
-                                onClick={() => setPalette(option.id)}
-                            >
-                                <span
-                                    className="settings-palette-swatch"
-                                    style={{ "--palette-swatch": option.swatch }}
-                                    aria-hidden="true"
+                        {COLOR_PALETTES.map(option => {
+                            const preview = expressivePalettePreview(option.id, theme);
+                            return (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    className="settings-palette-option"
+                                    role="radio"
+                                    aria-checked={palette === option.id}
+                                    tabIndex={palette === option.id ? 0 : -1}
+                                    onClick={() => setPalette(option.id)}
                                 >
-                                    <Check size={16} />
-                                </span>
-                                <span>{option.name}</span>
-                            </button>
-                        ))}
+                                    <span
+                                        className="settings-palette-swatch"
+                                        style={{
+                                            "--palette-swatch": preview.color,
+                                            "--palette-swatch-foreground": preview.onColor,
+                                        }}
+                                        aria-hidden="true"
+                                    >
+                                        <Check size={16} />
+                                    </span>
+                                    <span>{option.name}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </section>
             </motion.section>
@@ -2358,10 +2447,42 @@ export default function App() {
     const loadingMoreProjectsRef = useRef(false);
 
     useLayoutEffect(() => {
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.dataset.palette = palette;
-        const surfaceColor = getComputedStyle(document.documentElement).getPropertyValue("--surface").trim();
-        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", surfaceColor);
+        const root = document.documentElement;
+        const colors = expressiveColorScheme(palette, theme);
+        const aliases = {
+            "--surface": colors["--md-sys-color-background"],
+            "--surface-low": colors["--md-sys-color-surface-container-low"],
+            "--surface-high": colors["--md-sys-color-surface-container-high"],
+            "--surface-white": colors["--md-sys-color-surface-container-lowest"],
+            "--surface-dark": colors["--md-sys-color-surface-container-highest"],
+            "--ink": colors["--md-sys-color-on-surface"],
+            "--muted": colors["--md-sys-color-on-surface-variant"],
+            "--line": colors["--md-sys-color-outline-variant"],
+            "--primary": colors["--md-sys-color-primary"],
+            "--primary-deep": colors["--md-sys-color-on-secondary-container"],
+            "--primary-contrast": colors["--md-sys-color-on-primary"],
+            "--primary-container": colors["--md-sys-color-primary-container"],
+            "--on-primary-container": colors["--md-sys-color-on-primary-container"],
+            "--accent": colors["--md-sys-color-primary-container"],
+            "--accent-soft": colors["--md-sys-color-secondary-container"],
+            "--mint": colors["--md-sys-color-tertiary-container"],
+            "--lavender": colors["--md-sys-color-secondary-container"],
+            "--tertiary": colors["--md-sys-color-tertiary"],
+            "--tertiary-container": colors["--md-sys-color-tertiary-container"],
+            "--on-tertiary-container": colors["--md-sys-color-on-tertiary-container"],
+            "--danger": colors["--md-sys-color-error"],
+            "--error-container": colors["--md-sys-color-error-container"],
+            "--on-error": colors["--md-sys-color-on-error"],
+            "--on-error-container": colors["--md-sys-color-on-error-container"],
+            "--assistant-menu-bg": colors["--md-sys-color-surface-container-high"],
+        };
+        root.dataset.theme = theme;
+        root.dataset.palette = palette;
+        root.style.colorScheme = theme;
+        for (const [property, value] of Object.entries({ ...colors, ...aliases })) {
+            root.style.setProperty(property, value);
+        }
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", aliases["--surface"]);
     }, [theme, palette]);
     useEffect(() => {
         try {

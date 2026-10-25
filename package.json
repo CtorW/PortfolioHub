@@ -10,6 +10,7 @@
         "test:rules": "node --test tests/firestore.rules.test.js"
     },
     "dependencies": {
+        "@material/material-color-utilities": "^0.4.0",
         "@material/web": "^2.5.0",
         "firebase": "^12.19.0",
         "lucide-react": "^1.48.0",
