@@ -746,6 +746,13 @@ function ShowcaseFooter() {
 function ProjectCard({ project, canManage, canRequestDelete, index = 0, onOpen, onEdit, onDelete, onRequestDelete }) {
     const image = project.imageUrl ? projectImage(project.imageUrl) : null;
     const [imageFailed, setImageFailed] = useState(false);
+    function openProject(event) {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        onOpen(project);
+    }
+
+    const projectHref = `?project=${encodeURIComponent(project.id)}`;
     return (
         <motion.article
             className="project-card"
@@ -753,39 +760,47 @@ function ProjectCard({ project, canManage, canRequestDelete, index = 0, onOpen, 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(index * 0.04, 0.2), duration: 0.24 }}
         >
-            <div className="project-card-top">
-                <span className="published-tag">
-                    <CheckCircle2 size={16} /> Published
-                </span>
-                <span className="project-date">{project.createdLabel || "Recently added"}</span>
-            </div>
-            <h3>{project.title}</h3>
-            <span className="project-category-label">{project.category || "Capstone project"}</span>
-            {image &&
-                (imageFailed ? (
-                    <div className="project-image project-image-fallback" role="img" aria-label={`${project.title} image unavailable`}>
-                        <ImageOff size={24} aria-hidden="true" />
-                        <span>Image unavailable</span>
-                    </div>
-                ) : (
-                    <img
-                        className="project-image"
-                        src={image.url}
-                        alt={`${project.title} cover image`}
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        onError={() => setImageFailed(true)}
-                    />
-                ))}
-            <p className="project-description">{project.description}</p>
-            <div className="project-card-footer">
-                <span className="project-owner">
-                    <School size={16} /> {project.leaderName || project.facultyName || "Capstone leader"}
-                </span>
-                <MaterialButton variant="text" icon={ArrowUpRight} onClick={() => onOpen(project)}>
-                    Read capstone
-                </MaterialButton>
-            </div>
+            <a
+                className="project-card-link"
+                href={projectHref}
+                aria-label={`Open capstone: ${project.title}`}
+                onClick={openProject}
+            >
+                {image &&
+                    (imageFailed ? (
+                        <div
+                            className="project-image project-image-fallback"
+                            role="img"
+                            aria-label={`${project.title} image unavailable`}
+                        >
+                            <ImageOff size={24} aria-hidden="true" />
+                            <span>Image unavailable</span>
+                        </div>
+                    ) : (
+                        <img
+                            className="project-image"
+                            src={image.url}
+                            alt=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={() => setImageFailed(true)}
+                        />
+                    ))}
+                <div className="project-card-top">
+                    <span className="published-tag">
+                        <CheckCircle2 size={16} /> Published
+                    </span>
+                    <span className="project-date">{project.createdLabel || "Recently added"}</span>
+                </div>
+                <h3>{project.title}</h3>
+                <span className="project-category-label">{project.category || "Capstone project"}</span>
+                <p className="project-description">{project.description}</p>
+                <div className="project-card-footer">
+                    <span className="project-owner">
+                        <School size={16} /> {project.leaderName || project.facultyName || "Capstone leader"}
+                    </span>
+                </div>
+            </a>
             {canManage && (
                 <div className="project-admin-actions">
                     <MaterialButton
