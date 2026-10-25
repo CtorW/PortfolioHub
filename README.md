@@ -37,6 +37,26 @@ npx firebase-tools deploy --only firestore:rules,hosting --project YOUR_FIREBASE
 
 The Hosting rewrite serves the Vite single-page app for client-side routes. This setup uses Firebase Hosting and Firestore only. Project cover images remain externally hosted URLs; Firebase Storage uploads and Cloud Functions are not configured.
 
+## GitHub Pages deploy
+
+The `Deploy to GitHub Pages` workflow builds and deploys the site whenever changes are pushed to the `uno` branch, or when started manually from the Actions tab. The expected site URL is `https://ctorw.github.io/PortfolioHub/`.
+
+Before the first deployment:
+
+1. In the repository, open **Settings → Pages** and set the build and deployment source to **GitHub Actions**.
+2. Open **Settings → Secrets and variables → Actions → Variables** and add these repository variables from the Firebase web app configuration:
+   - `VITE_FIREBASE_API_KEY`
+   - `VITE_FIREBASE_AUTH_DOMAIN`
+   - `VITE_FIREBASE_PROJECT_ID`
+   - `VITE_FIREBASE_STORAGE_BUCKET`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+   - `VITE_FIREBASE_APP_ID`
+3. In Firebase Console, add `ctorw.github.io` to **Authentication → Settings → Authorized domains**.
+4. Deploy the Firestore rules separately with `npx firebase-tools deploy --only firestore:rules --project YOUR_FIREBASE_PROJECT_ID`.
+5. Push a change to `uno`, or run the workflow manually in **Actions**. The workflow checks that the Firebase variables are configured and fails with a clear message if any are missing.
+
+The Firebase web app configuration is included in browser code and is not a private credential; access control must be enforced by Firebase Authentication and Firestore rules. Do not put service account keys or other server credentials in Vite variables. GitHub Pages only serves static files, so the assistant’s default local Ollama endpoint is not available to public visitors.
+
 ## Publishing
 
 Faculty publish immediately after reviewing the capstone preview. Each project requires a title, leader, category, description, image URL, and repository URL. Additional contributors and a demo video are optional. Admins can edit or delete projects; faculty project and account removal requests still require manual admin action.
