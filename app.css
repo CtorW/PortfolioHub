@@ -1012,7 +1012,7 @@ md-menu.assistant-model-menu {
     display: flex;
     flex-direction: column;
     border: 1px solid var(--line);
-    border-radius: 28px;
+    border-radius: 12px;
     background: var(--surface-low);
     animation: enter-view 0.3s ease both;
     transition:
@@ -1034,13 +1034,13 @@ md-menu.assistant-model-menu {
     outline-offset: -5px;
 }
 .project-card:has(.project-card-link:hover) {
-    border-radius: 28px;
+    border-radius: 12px;
     background: var(--surface-high);
     box-shadow: none;
     transform: none;
 }
 .project-card:has(.project-card-link:active) {
-    border-radius: 12px;
+    border-radius: 32px;
     box-shadow: none;
     transform: none;
 }
