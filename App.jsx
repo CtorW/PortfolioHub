@@ -40,6 +40,7 @@ import { AnimatePresence, motion } from "motion/react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { M3eFab } from "@m3e/react/fab";
 import { M3eFabMenu, M3eFabMenuItem, M3eFabMenuTrigger } from "@m3e/react/fab-menu";
+import { M3eLoadingIndicator } from "@m3e/react/loading-indicator";
 import { M3eShape } from "@m3e/react/shape";
 import { M3eTheme } from "@m3e/react/theme";
 import { Hct, SchemeExpressive, argbFromHex, hexFromArgb } from "@material/material-color-utilities";
@@ -85,6 +86,15 @@ const COLOR_PALETTES = [
     { id: "violet", name: "Orchid", seed: "#ea44ee" },
     { id: "copper", name: "Copper", seed: "#8a4c14" },
 ];
+
+function LoadingNotice({ label, className = "" }) {
+    return (
+        <div className={`loading-notice ${className}`.trim()} role="status" aria-live="polite" aria-busy="true">
+            <M3eLoadingIndicator variant="contained" aria-label={label} />
+            <span>{label}</span>
+        </div>
+    );
+}
 const MATERIAL_COLOR_ROLES = [
     "primary",
     "onPrimary",
@@ -773,10 +783,14 @@ function AssistantView({ session, projects }) {
             />
             <section className="assistant-panel surface-panel" aria-label="Ask Assistant">
                 <div className="assistant-toolbar">
-                    <span className={`assistant-connection connection-${connection}`} role="status">
-                        <span className="connection-dot" />
-                        {connectionLabel}
-                    </span>
+                    {connection === "checking" ? (
+                        <LoadingNotice className="assistant-loading-notice" label="Checking assistant connection" />
+                    ) : (
+                        <span className={`assistant-connection connection-${connection}`} role="status">
+                            <span className="connection-dot" />
+                            {connectionLabel}
+                        </span>
+                    )}
                     <div className="assistant-model-controls">
                         <label htmlFor="assistant-model">Model</label>
                         <button
@@ -849,9 +863,7 @@ function AssistantView({ session, projects }) {
                         </motion.article>
                     ))}
                     {sending && (
-                        <div className="assistant-thinking" role="status">
-                            <span className="connection-dot" /> Thinking with {model}...
-                        </div>
+                        <LoadingNotice className="assistant-thinking" label={`Waiting for ${model}`} />
                     )}
                 </div>
                 <form className="assistant-compose" onSubmit={submit}>
@@ -1057,6 +1069,7 @@ function ProjectGrid({
     query = "",
     category = "All",
     hasMoreProjects = false,
+    loadingProjects = false,
     loadingMoreProjects = false,
     onLoadMore,
     session,
@@ -1079,6 +1092,9 @@ function ProjectGrid({
     });
     useEffect(() => setVisibleCount(12), [query, category, projects]);
     const hasFilters = Boolean(needle) || category !== "All";
+    if (loadingProjects && projects.length === 0) {
+        return <LoadingNotice className="project-loading-notice" label="Loading capstones" />;
+    }
     if (!results.length)
         return (
             <div className="empty-state">
@@ -1092,7 +1108,14 @@ function ProjectGrid({
                         disabled={loadingMoreProjects}
                         onClick={onLoadMore}
                     >
-                        {loadingMoreProjects ? "Loading capstones" : "Load more capstones"}
+                        {loadingMoreProjects ? (
+                            <>
+                                <M3eLoadingIndicator variant="contained" aria-label="Loading capstones" />
+                                <span>Loading capstones</span>
+                            </>
+                        ) : (
+                            "Load more capstones"
+                        )}
                     </MaterialButton>
                 )}
                 {!hasFilters && !session && (
@@ -1129,7 +1152,12 @@ function ProjectGrid({
                         }}
                     >
                         {loadingMoreProjects
-                            ? "Loading capstones"
+                            ? (
+                                  <>
+                                      <M3eLoadingIndicator variant="contained" aria-label="Loading capstones" />
+                                      <span>Loading capstones</span>
+                                  </>
+                              )
                             : results.length > visibleCount
                               ? `Show 12 more (${results.length - visibleCount} remaining)`
                               : "Load more capstones"}
@@ -1142,6 +1170,7 @@ function ProjectGrid({
 
 function ProjectArticleView({
     project,
+    loading = false,
     onBack,
     canManage,
     canRequestDelete,
@@ -1150,6 +1179,7 @@ function ProjectArticleView({
     onRequestDelete,
 }) {
     if (!project) {
+        if (loading) return <LoadingNotice className="project-loading-notice" label="Loading capstone details" />;
         return (
             <section className="empty-state project-not-found">
                 <FolderOpen className="empty-icon" size={28} />
@@ -1329,6 +1359,7 @@ function ShowcaseView({
     projects,
     projectCount,
     hasMoreProjects,
+    loadingProjects,
     loadingMoreProjects,
     loadMoreProjects,
     query,
@@ -1397,6 +1428,7 @@ function ShowcaseView({
                     query={query}
                     category={category}
                     hasMoreProjects={hasMoreProjects}
+                    loadingProjects={loadingProjects}
                     loadingMoreProjects={loadingMoreProjects}
                     onLoadMore={loadMoreProjects}
                     session={session}
@@ -1519,6 +1551,7 @@ function UploadView({ session, publish }) {
     const [categoryMenuVersion, setCategoryMenuVersion] = useState(0);
     const [categoryError, setCategoryError] = useState("");
     const [preview, setPreview] = useState(null);
+    const [publishing, setPublishing] = useState(false);
     function submit(event) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
@@ -1541,6 +1574,14 @@ function UploadView({ session, publish }) {
             contactEmail: String(data.get("contactEmail") || "").trim(),
             demoVideoUrl: String(data.get("demoVideoUrl")).trim(),
         });
+    }
+    async function publishPreview() {
+        setPublishing(true);
+        try {
+            await publish(preview);
+        } finally {
+            setPublishing(false);
+        }
     }
     return (
         <>
@@ -1581,10 +1622,11 @@ function UploadView({ session, publish }) {
                             <MaterialButton variant="tonal" onClick={() => setPreview(null)}>
                                 Back to editing
                             </MaterialButton>
-                            <MaterialButton icon={ArrowForwardIcon} onClick={() => publish(preview)}>
-                                Publish capstone
+                            <MaterialButton icon={ArrowForwardIcon} disabled={publishing} onClick={publishPreview}>
+                                {publishing ? "Publishing capstone" : "Publish capstone"}
                             </MaterialButton>
                         </div>
+                        {publishing && <LoadingNotice className="form-loading-notice" label="Publishing capstone" />}
                     </section>
                 )}
                 <form
@@ -1810,6 +1852,7 @@ function StudentCapstonesView({ session, projects, requestDeletion, requestAccou
 
 function FacultyAccountsView({
     session,
+    loading = false,
     facultyAccounts,
     projectDeletionRequests,
     accountDeletionRequests,
@@ -1872,6 +1915,7 @@ function FacultyAccountsView({
                 subtitle="Approve or deny faculty access requests."
                 session={session}
             />
+            {loading && <LoadingNotice className="section-loading-notice" label="Loading faculty accounts and requests" />}
             <div className="account-groups">
                 <section className="surface-panel">
                     <div className="panel-heading">
@@ -2079,9 +2123,11 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [submittingLabel, setSubmittingLabel] = useState("Processing sign-in");
     const requestRef = useRef(null);
     async function submitLogin(event) {
         event.preventDefault();
+        setSubmittingLabel("Signing in");
         setSubmitting(true);
         try {
             await login(role, email.trim().toLowerCase(), password);
@@ -2093,6 +2139,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
         event.preventDefault();
         const form = event.currentTarget;
         const data = new FormData(form);
+        setSubmittingLabel("Creating faculty account");
         setSubmitting(true);
         try {
             const created = await requestAccess({
@@ -2117,6 +2164,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
             />
             <section className="auth-layout">
                 <div className="auth-panel surface-panel">
+                    {submitting && <LoadingNotice className="form-loading-notice" label={submittingLabel} />}
                     <div className="role-switch" role="tablist" aria-label="Sign-in role">
                         <MaterialButton
                             variant={role === "faculty" ? "tonal" : "text"}
@@ -2243,12 +2291,17 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
 }
 
 function ProjectDialog({ dialog, close, save, remove }) {
+    const [working, setWorking] = useState(false);
+    const [workingLabel, setWorkingLabel] = useState("Saving capstone changes");
     if (!dialog) return null;
     const edit = dialog.kind === "edit";
-    function submit(event) {
+    function closeDialog() {
+        if (!working) close();
+    }
+    async function submit(event) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
-        save(dialog.project.id, {
+        const changes = {
             title: String(data.get("title")).trim(),
             leaderName: String(data.get("leaderName")).trim(),
             category: String(data.get("category") || ""),
@@ -2261,7 +2314,23 @@ function ProjectDialog({ dialog, close, save, remove }) {
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
             contactEmail: String(data.get("contactEmail") || "").trim(),
             demoVideoUrl: String(data.get("demoVideoUrl")).trim(),
-        });
+        };
+        setWorkingLabel("Saving capstone changes");
+        setWorking(true);
+        try {
+            await save(dialog.project.id, changes);
+        } finally {
+            setWorking(false);
+        }
+    }
+    async function deleteCapstone() {
+        setWorkingLabel("Deleting capstone");
+        setWorking(true);
+        try {
+            await remove(dialog.project.id);
+        } finally {
+            setWorking(false);
+        }
     }
     return (
         <motion.div
@@ -2269,7 +2338,7 @@ function ProjectDialog({ dialog, close, save, remove }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onMouseDown={close}
+            onMouseDown={closeDialog}
         >
             <motion.section
                 className="react-modal-content"
@@ -2282,8 +2351,9 @@ function ProjectDialog({ dialog, close, save, remove }) {
             >
                 <div className="dialog-heading">
                     <span className="step-pill">{edit ? "ADMIN EDIT" : "REMOVE CONTENT"}</span>
-                    <MaterialIconButton icon={X} label="Close" onClick={close} />
+                    <MaterialIconButton icon={X} label="Close" disabled={working} onClick={closeDialog} />
                 </div>
+                {working && <LoadingNotice className="form-loading-notice" label={workingLabel} />}
                 {edit ? (
                     <>
                         <h2 id="modal-heading">Edit capstone</h2>
@@ -2380,11 +2450,11 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                 </small>
                             </label>
                             <div className="dialog-actions">
-                                <MaterialButton variant="tonal" onClick={close}>
+                                <MaterialButton variant="tonal" disabled={working} onClick={closeDialog}>
                                     Cancel
                                 </MaterialButton>
-                                <MaterialButton icon={Check} type="submit">
-                                    Save changes
+                                <MaterialButton icon={Check} type="submit" disabled={working}>
+                                    {working ? "Saving changes" : "Save changes"}
                                 </MaterialButton>
                             </div>
                         </form>
@@ -2397,15 +2467,16 @@ function ProjectDialog({ dialog, close, save, remove }) {
                             action cannot be undone.
                         </p>
                         <div className="dialog-actions">
-                            <MaterialButton variant="tonal" onClick={close}>
+                            <MaterialButton variant="tonal" disabled={working} onClick={closeDialog}>
                                 Cancel
                             </MaterialButton>
                             <MaterialButton
                                 className="m3-danger"
                                 icon={Trash2}
-                                onClick={() => remove(dialog.project.id)}
+                                disabled={working}
+                                onClick={deleteCapstone}
                             >
-                                Delete capstone
+                                {working ? "Deleting capstone" : "Delete capstone"}
                             </MaterialButton>
                         </div>
                     </>
@@ -2596,6 +2667,9 @@ function LinkRipples() {
 
 export default function App() {
     const [projects, setProjects] = useState([]);
+    const [loadingProjects, setLoadingProjects] = useState(true);
+    const [loadingSelectedProject, setLoadingSelectedProject] = useState(false);
+    const [authChecking, setAuthChecking] = useState(true);
     const [projectCount, setProjectCount] = useState(0);
     const [hasMoreProjects, setHasMoreProjects] = useState(false);
     const [loadingMoreProjects, setLoadingMoreProjects] = useState(false);
@@ -2618,12 +2692,15 @@ export default function App() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [dialog, setDialog] = useState(null);
     const [toast, setToast] = useState("");
+    const [loadingTasks, setLoadingTasks] = useState([]);
+    const [loadingAdminData, setLoadingAdminData] = useState(false);
     const themeRootRef = useRef(null);
     const authCheckRef = useRef(0);
     const projectRouteTouchedRef = useRef(new URLSearchParams(window.location.search).has("project"));
     const projectCursorRef = useRef(null);
     const loadedMoreProjectsRef = useRef(false);
     const loadingMoreProjectsRef = useRef(false);
+    const loadingTaskIdRef = useRef(0);
 
     useLayoutEffect(() => {
         const root = document.documentElement;
@@ -2677,6 +2754,7 @@ export default function App() {
 
     useEffect(() => {
         if (!auth || !db) {
+            setAuthChecking(false);
             setToast("Firebase configuration is missing. Check your VITE_FIREBASE settings.");
             return undefined;
         }
@@ -2685,21 +2763,25 @@ export default function App() {
         const unsubscribe = onAuthStateChanged(auth, async user => {
             const checkId = ++authCheckRef.current;
             if (!user) {
+                setAuthChecking(false);
                 setSession(null);
                 setView(new URLSearchParams(window.location.search).has("project") ? "project" : "showcase");
                 return;
             }
 
+            setAuthChecking(true);
             try {
                 const profile = await loadUserProfile(user.uid);
                 if (!active || checkId !== authCheckRef.current) return;
                 if (!profile) {
+                    setAuthChecking(false);
                     setSession(null);
                     return;
                 }
 
                 const resolvedStatus = profile.status || (AUTO_APPROVE_FACULTY && profile.role === "faculty" ? "approved" : null);
                 if (resolvedStatus !== "approved") {
+                    setAuthChecking(false);
                     setSession(null);
                     setToast(
                         profile.status === "rejected"
@@ -2720,6 +2802,7 @@ export default function App() {
                 }
 
                 setSession(normalizedProfile);
+                setAuthChecking(false);
                 if (
                     !projectRouteTouchedRef.current &&
                     !new URLSearchParams(window.location.search).has("project")
@@ -2728,6 +2811,7 @@ export default function App() {
                 }
             } catch (error) {
                 if (!active || checkId !== authCheckRef.current) return;
+                setAuthChecking(false);
                 setSession(null);
                 setToast(`Could not load your Firebase profile: ${error.message}`);
             }
@@ -2740,17 +2824,22 @@ export default function App() {
     }, []);
 
     useEffect(() => {
-        if (!db) return undefined;
+        if (!db) {
+            setLoadingProjects(false);
+            return undefined;
+        }
         const publicCatalog = !session?.role;
         const projectsQuery = publicCatalog
             ? firestoreQuery(collection(db, "projects"), orderBy("createdAt", "desc"), limit(PROJECT_PAGE_SIZE))
             : collection(db, "projects");
         projectCursorRef.current = null;
         loadedMoreProjectsRef.current = false;
+        setLoadingProjects(true);
         setHasMoreProjects(false);
         return onSnapshot(
             projectsQuery,
             snapshot => {
+                setLoadingProjects(false);
                 const records = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
                 records.sort((left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0));
                 if (publicCatalog) {
@@ -2761,14 +2850,21 @@ export default function App() {
                     });
                     setHasMoreProjects(snapshot.docs.length === PROJECT_PAGE_SIZE);
                     getCountFromServer(collection(db, "projects"))
-                        .then(result => setProjectCount(result.data().count))
-                        .catch(error => setToast(`Could not count capstones: ${error.message}`));
+                        .then(result => {
+                            setProjectCount(result.data().count);
+                        })
+                        .catch(error => {
+                            setToast(`Could not count capstones: ${error.message}`);
+                        });
                 } else {
                     setProjects(records);
                     setProjectCount(records.length);
                 }
             },
-            error => setToast(`Could not load capstones: ${error.message}`),
+            error => {
+                setLoadingProjects(false);
+                setToast(`Could not load capstones: ${error.message}`);
+            },
         );
     }, [session?.role]);
 
@@ -2777,22 +2873,47 @@ export default function App() {
             setFacultyAccounts([]);
             setProjectDeletionRequests([]);
             setAccountDeletionRequests([]);
+            setLoadingAdminData(false);
             return undefined;
+        }
+        setLoadingAdminData(true);
+        const receivedInitialSnapshots = new Set();
+        function markSnapshotLoaded(key) {
+            receivedInitialSnapshots.add(key);
+            if (receivedInitialSnapshots.size === 3) setLoadingAdminData(false);
         }
         const unsubscribeFaculty = onSnapshot(
             collection(db, "faculty"),
-            snapshot => setFacultyAccounts(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))),
-            error => setToast(`Could not load faculty accounts: ${error.message}`),
+            snapshot => {
+                setFacultyAccounts(snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
+                markSnapshotLoaded("faculty");
+            },
+            error => {
+                setToast(`Could not load faculty accounts: ${error.message}`);
+                markSnapshotLoaded("faculty");
+            },
         );
         const unsubscribeDeletionRequests = onSnapshot(
             collection(db, "deletionRequests"),
-            snapshot => setProjectDeletionRequests(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))),
-            error => setToast(`Could not load capstone deletion requests: ${error.message}`),
+            snapshot => {
+                setProjectDeletionRequests(snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
+                markSnapshotLoaded("project-deletions");
+            },
+            error => {
+                setToast(`Could not load capstone deletion requests: ${error.message}`);
+                markSnapshotLoaded("project-deletions");
+            },
         );
         const unsubscribeAccountRequests = onSnapshot(
             collection(db, "accountDeletionRequests"),
-            snapshot => setAccountDeletionRequests(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))),
-            error => setToast(`Could not load faculty account requests: ${error.message}`),
+            snapshot => {
+                setAccountDeletionRequests(snapshot.docs.map(item => ({ ...item.data(), id: item.id })));
+                markSnapshotLoaded("account-deletions");
+            },
+            error => {
+                setToast(`Could not load faculty account requests: ${error.message}`);
+                markSnapshotLoaded("account-deletions");
+            },
         );
         return () => {
             unsubscribeFaculty();
@@ -2816,8 +2937,16 @@ export default function App() {
         return () => window.removeEventListener("popstate", restoreProjectRoute);
     }, [projectReturnView]);
     useEffect(() => {
-        if (!db || !selectedProjectId) return undefined;
+        if (!selectedProjectId || projects.some(project => project.id === selectedProjectId)) {
+            setLoadingSelectedProject(false);
+            return undefined;
+        }
+        if (!db) {
+            setLoadingSelectedProject(false);
+            return undefined;
+        }
         let active = true;
+        setLoadingSelectedProject(true);
         getDoc(doc(db, "projects", selectedProjectId))
             .then(snapshot => {
                 if (!active || !snapshot.exists()) return;
@@ -2831,13 +2960,30 @@ export default function App() {
             })
             .catch(error => {
                 if (active) setToast(`Could not load capstone: ${error.message}`);
+            })
+            .finally(() => {
+                if (active) setLoadingSelectedProject(false);
             });
         return () => {
             active = false;
         };
-    }, [selectedProjectId]);
+    }, [selectedProjectId, projects]);
 
     const notify = message => setToast(message);
+    function trackLoading(label, operation) {
+        const id = ++loadingTaskIdRef.current;
+        let visible = false;
+        const timer = window.setTimeout(() => {
+            visible = true;
+            setLoadingTasks(current => [...current, { id, label }]);
+        }, 180);
+        return Promise.resolve()
+            .then(operation)
+            .finally(() => {
+                window.clearTimeout(timer);
+                if (visible) setLoadingTasks(current => current.filter(task => task.id !== id));
+            });
+    }
     async function loadMoreProjects() {
         if (!db || !projectCursorRef.current || loadingMoreProjectsRef.current || !hasMoreProjects) return;
         loadingMoreProjectsRef.current = true;
@@ -3072,30 +3218,32 @@ export default function App() {
         if (!db || session?.role !== "faculty") return notify("Sign in as faculty to request capstone deletion.");
         const confirmed = window.confirm(`Ask an administrator to remove “${project.title}” from the showcase?`);
         if (!confirmed) return;
-        try {
-            const existing = await getDocs(
-                firestoreQuery(
-                    collection(db, "deletionRequests"),
-                    where("projectId", "==", project.id),
-                    where("requestedByUid", "==", session.uid),
-                    where("status", "==", "pending"),
-                ),
-            );
-            if (!existing.empty) return notify("A deletion request for this capstone is already awaiting review.");
-            await addDoc(collection(db, "deletionRequests"), {
-                projectId: project.id,
-                projectTitle: project.title,
-                facultyUid: project.facultyUid || session.uid,
-                facultyEmail: session.email,
-                facultyName: session.name,
-                requestedByUid: session.uid,
-                status: "pending",
-                createdAt: serverTimestamp(),
-            });
-            notify("Deletion request sent to the admin for review.");
-        } catch (error) {
-            notify(`Could not send deletion request: ${error.message}`);
-        }
+        return trackLoading("Sending capstone removal request", async () => {
+            try {
+                const existing = await getDocs(
+                    firestoreQuery(
+                        collection(db, "deletionRequests"),
+                        where("projectId", "==", project.id),
+                        where("requestedByUid", "==", session.uid),
+                        where("status", "==", "pending"),
+                    ),
+                );
+                if (!existing.empty) return notify("A deletion request for this capstone is already awaiting review.");
+                await addDoc(collection(db, "deletionRequests"), {
+                    projectId: project.id,
+                    projectTitle: project.title,
+                    facultyUid: project.facultyUid || session.uid,
+                    facultyEmail: session.email,
+                    facultyName: session.name,
+                    requestedByUid: session.uid,
+                    status: "pending",
+                    createdAt: serverTimestamp(),
+                });
+                notify("Deletion request sent to the admin for review.");
+            } catch (error) {
+                notify(`Could not send deletion request: ${error.message}`);
+            }
+        });
     }
     async function resolveProjectDeletion(request, status) {
         if (!db || session?.role !== "admin") return notify("Only admins can resolve deletion requests.");
@@ -3122,26 +3270,28 @@ export default function App() {
         if (!window.confirm("Ask an administrator to remove your faculty account? Your access will end once the request is completed.")) {
             return;
         }
-        try {
-            const existing = await getDocs(
-                firestoreQuery(
-                    collection(db, "accountDeletionRequests"),
-                    where("facultyUid", "==", session.uid),
-                    where("status", "==", "pending"),
-                ),
-            );
-            if (!existing.empty) return notify("Your account-removal request is already awaiting admin review.");
-            await addDoc(collection(db, "accountDeletionRequests"), {
-                facultyUid: session.uid,
-                facultyEmail: session.email,
-                facultyName: session.name,
-                status: "pending",
-                createdAt: serverTimestamp(),
-            });
-            notify("Account-removal request sent to the admin.");
-        } catch (error) {
-            notify(`Could not request account removal: ${error.message}`);
-        }
+        return trackLoading("Sending account removal request", async () => {
+            try {
+                const existing = await getDocs(
+                    firestoreQuery(
+                        collection(db, "accountDeletionRequests"),
+                        where("facultyUid", "==", session.uid),
+                        where("status", "==", "pending"),
+                    ),
+                );
+                if (!existing.empty) return notify("Your account-removal request is already awaiting admin review.");
+                await addDoc(collection(db, "accountDeletionRequests"), {
+                    facultyUid: session.uid,
+                    facultyEmail: session.email,
+                    facultyName: session.name,
+                    status: "pending",
+                    createdAt: serverTimestamp(),
+                });
+                notify("Account-removal request sent to the admin.");
+            } catch (error) {
+                notify(`Could not request account removal: ${error.message}`);
+            }
+        });
     }
     async function resolveAccountDeletion(request, status) {
         if (!db || session?.role !== "admin") return notify("Only admins can resolve account-removal requests.");
@@ -3196,6 +3346,7 @@ export default function App() {
         content = (
             <ProjectArticleView
                 project={project}
+                loading={loadingSelectedProject}
                 onBack={backFromProject}
                 canManage={session?.role === "admin"}
                 canRequestDelete={canRequestDelete}
@@ -3223,6 +3374,7 @@ export default function App() {
                     projects={projects}
                     projectCount={projectCount}
                     hasMoreProjects={hasMoreProjects}
+                    loadingProjects={loadingProjects}
                     loadingMoreProjects={loadingMoreProjects}
                     loadMoreProjects={loadMoreProjects}
                     query={query}
@@ -3236,14 +3388,19 @@ export default function App() {
         content = (
             <FacultyAccountsView
                 session={session}
+                loading={loadingAdminData}
                 facultyAccounts={facultyAccounts}
                 projectDeletionRequests={projectDeletionRequests}
                 accountDeletionRequests={accountDeletionRequests}
-                approve={approveFaculty}
-                deny={denyFaculty}
+                approve={id => trackLoading("Approving faculty account", () => approveFaculty(id))}
+                deny={id => trackLoading("Updating faculty access", () => denyFaculty(id))}
                 removeRejected={removeRejectedFaculty}
-                resolveProjectDeletion={resolveProjectDeletion}
-                resolveAccountDeletion={resolveAccountDeletion}
+                resolveProjectDeletion={(request, status) =>
+                    trackLoading("Updating capstone removal request", () => resolveProjectDeletion(request, status))
+                }
+                resolveAccountDeletion={(request, status) =>
+                    trackLoading("Updating faculty removal request", () => resolveAccountDeletion(request, status))
+                }
             />
         );
     else if (view === "manage-projects" && session.role === "admin")
@@ -3258,7 +3415,13 @@ export default function App() {
                 onVoiceSearch={() => notify("Voice search is not available in this browser.")}
             />
         );
-    else if (view === "upload") content = <UploadView session={session} publish={publish} />;
+    else if (view === "upload")
+        content = (
+            <UploadView
+                session={session}
+                publish={publish}
+            />
+        );
     else if (view === "my-projects" && session.role === "faculty")
         content = (
             <StudentCapstonesView
@@ -3276,6 +3439,7 @@ export default function App() {
                 projects={projects}
                 projectCount={projectCount}
                 hasMoreProjects={hasMoreProjects}
+                loadingProjects={loadingProjects}
                 loadingMoreProjects={loadingMoreProjects}
                 loadMoreProjects={loadMoreProjects}
                 query={query}
@@ -3313,12 +3477,21 @@ export default function App() {
                     session={session}
                     view={view === "project" ? projectReturnView : view}
                     navigate={navigate}
-                    signOut={signOut}
+                    signOut={() => trackLoading("Signing out", signOut)}
                     theme={theme}
                     toggleTheme={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
                     openSettings={() => setSettingsOpen(true)}
                 />
                 <main className="app-main">
+                    {authChecking && (
+                        <LoadingNotice className="network-loading-notice" label="Checking sign-in status" />
+                    )}
+                    {loadingTasks.length > 0 && (
+                        <LoadingNotice
+                            className="network-loading-notice"
+                            label={loadingTasks.at(-1).label}
+                        />
+                    )}
                     <AnimatePresence mode="wait" initial={false}>
                         <motion.div
                             className="app-content"

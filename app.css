@@ -134,6 +134,42 @@ textarea:focus-visible {
     margin-left: var(--rail-width);
     padding: 32px var(--content-inset) 64px;
 }
+.loading-notice {
+    min-height: 68px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: var(--surface-low);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+}
+.loading-notice m3e-loading-indicator {
+    flex: 0 0 48px;
+    --m3e-loading-indicator-container-size: 48px;
+    --m3e-loading-indicator-contained-container-color: var(--accent-soft);
+    --m3e-loading-indicator-contained-active-indicator-color: var(--primary-deep);
+}
+.network-loading-notice {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 0 16px;
+}
+.project-loading-notice {
+    min-height: 180px;
+    justify-content: center;
+}
+.section-loading-notice,
+.form-loading-notice {
+    margin: 0 0 16px;
+}
+.form-loading-notice {
+    width: fit-content;
+    max-width: 100%;
+}
 .nav-rail {
     position: fixed;
     inset: 0 auto 0 0;
@@ -670,6 +706,16 @@ textarea:focus-visible {
     font-size: 11px;
     font-weight: 600;
 }
+.assistant-loading-notice {
+    min-height: 42px;
+    padding: 4px 8px;
+    gap: 8px;
+    font-size: 11px;
+}
+.assistant-loading-notice m3e-loading-indicator {
+    flex-basis: 36px;
+    --m3e-loading-indicator-container-size: 36px;
+}
 .connection-dot {
     width: 8px;
     height: 8px;
@@ -803,6 +849,9 @@ md-menu.assistant-model-menu {
     background: var(--accent-soft);
 }
 .assistant-thinking {
+    align-self: flex-start;
+    min-height: 48px;
+    margin: 4px 0 8px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -989,6 +1038,14 @@ md-menu.assistant-model-menu {
     display: flex;
     justify-content: center;
     padding-top: 4px;
+}
+.project-grid-more m3e-loading-indicator,
+.empty-state m3e-loading-indicator {
+    width: 32px;
+    flex: 0 0 32px;
+    --m3e-loading-indicator-container-size: 32px;
+    --m3e-loading-indicator-contained-container-color: var(--accent-soft);
+    --m3e-loading-indicator-contained-active-indicator-color: var(--primary-deep);
 }
 .project-description {
     min-height: 58px;
