@@ -397,12 +397,7 @@ textarea:focus-visible {
     transition:
         background-color var(--motion-expressive-default-effects),
         border-radius var(--motion-expressive-default-spatial),
-        color var(--motion-expressive-default-effects),
-        transform var(--motion-expressive-fast-spatial);
-}
-.button:hover {
-    border-radius: 25px;
-    transform: translateY(-1px);
+        color var(--motion-expressive-default-effects);
 }
 .button .material-symbols-rounded {
     font-size: 19px;
@@ -468,20 +463,15 @@ textarea:focus-visible {
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transform-origin: center;
     transition:
         background-color var(--motion-expressive-default-effects),
         border-color var(--motion-expressive-default-effects),
-        color var(--motion-expressive-default-effects),
-        transform 400ms cubic-bezier(0.42, 1.67, 0.21, 0.9);
+        border-radius var(--motion-expressive-default-spatial),
+        color var(--motion-expressive-default-effects);
 }
 .project-category-filter:hover {
     background: var(--surface-low);
     color: var(--ink);
-    transform: scale(1.04);
-}
-.project-category-filter:active {
-    transform: scale(0.96);
 }
 .project-category-filter.is-selected {
     border-color: transparent;
@@ -526,18 +516,16 @@ textarea:focus-visible {
     display: flex;
     align-items: center;
     gap: 12px;
-    border-radius: 18px;
+    border-radius: 48px;
     background: var(--surface-low);
     color: var(--muted);
-    transform: scaleX(1);
-    transform-origin: center;
     transition:
         background 0.22s ease,
-        transform 0.28s cubic-bezier(0.2, 0.7, 0.25, 1);
+        border-radius var(--motion-expressive-default-spatial);
 }
 .search-bar:focus-within {
+    border-radius: 12px;
     background: var(--accent-soft);
-    transform: scaleX(1.05);
 }
 .search-leading {
     flex: 0 0 auto;
@@ -1209,9 +1197,7 @@ md-menu.assistant-model-menu {
     flex-direction: column;
     border: 1px solid var(--line);
     border-radius: 34px 34px 34px 8px;
-    background:
-        radial-gradient(ellipse at 100% 0%, var(--accent-soft), transparent 46%),
-        var(--surface-low);
+    background: radial-gradient(ellipse at 100% 0%, var(--accent-soft), transparent 46%), var(--surface-low);
 }
 .project-article-header .overline {
     margin-bottom: 18px;
@@ -1645,7 +1631,7 @@ md-menu.assistant-model-menu {
     grid-template-columns: 1fr 1fr;
     gap: 6px;
     border: 1px solid var(--line);
-    border-radius: 20px 20px 20px 7px;
+    border-radius: 20px;
     background: var(--surface-low);
 }
 .role-option {
@@ -2352,12 +2338,10 @@ md-icon-button.m3-icon-button {
 .role-switch md-text-button {
     width: 100%;
     --md-filled-tonal-button-container-height: 44px;
-    --md-filled-tonal-button-container-shape: 16px 16px 16px 5px;
     --md-filled-tonal-button-hover-container-elevation: 0;
     --md-filled-tonal-button-focus-container-elevation: 0;
     --md-filled-tonal-button-pressed-container-elevation: 0;
     --md-text-button-container-height: 44px;
-    --md-text-button-container-shape: 16px 16px 16px 5px;
     --md-text-button-hover-container-elevation: 0;
     --md-text-button-focus-container-elevation: 0;
     --md-text-button-pressed-container-elevation: 0;
@@ -2407,61 +2391,64 @@ button,
 .button,
 .icon-button,
 .rail-link,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
 md-filled-button.m3-button,
 md-filled-tonal-button.m3-button,
 md-text-button.m3-button,
 md-icon-button.m3-icon-button {
-    transform-origin: center center;
+    border-radius: 48px;
     transition:
         background-color var(--motion-expressive-default-effects),
         border-color var(--motion-expressive-default-effects),
         border-radius var(--motion-expressive-default-spatial),
         box-shadow var(--motion-expressive-default-effects),
-        color var(--motion-expressive-default-effects),
-        transform var(--motion-expressive-fast-spatial);
+        color var(--motion-expressive-default-effects);
+    --md-filled-button-container-shape: 48px;
+    --md-filled-tonal-button-container-shape: 48px;
+    --md-text-button-container-shape: 48px;
+    --md-icon-button-state-layer-shape: 48px;
 }
 :is(
         button,
         .button,
         .icon-button,
         .rail-link,
+        input[type="button"],
+        input[type="submit"],
+        input[type="reset"],
         md-filled-button.m3-button,
         md-filled-tonal-button.m3-button,
         md-text-button.m3-button,
         md-icon-button.m3-icon-button
     ):not(:disabled):hover {
-    transform: scale(1.04);
-    box-shadow: none !important;
+    transform: none;
 }
 :is(
         button,
         .button,
         .icon-button,
         .rail-link,
+        input[type="button"],
+        input[type="submit"],
+        input[type="reset"],
         md-filled-button.m3-button,
         md-filled-tonal-button.m3-button,
         md-text-button.m3-button,
         md-icon-button.m3-icon-button
     ):not(:disabled):active {
-    transform: scale(0.92);
+    border-radius: 12px;
+    --md-filled-button-container-shape: 12px;
+    --md-filled-tonal-button-container-shape: 12px;
+    --md-text-button-container-shape: 12px;
+    --md-icon-button-state-layer-shape: 12px;
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.31, 0.94, 0.34, 1);
 }
 .role-switch [data-role="tab"][data-aria-selected]:not([data-aria-selected="false"]) {
     --md-filled-tonal-button-label-text-color: var(--primary-deep);
     --md-text-button-label-text-color: var(--primary);
-    animation: role-selection-activation var(--motion-standard-default-spatial);
-}
-@keyframes role-selection-activation {
-    from {
-        transform: scale(0.92);
-    }
-    72% {
-        transform: scale(1.04);
-    }
-    to {
-        transform: scale(1);
-    }
 }
 @media (prefers-reduced-motion: reduce) {
     :is(
@@ -2469,12 +2456,14 @@ md-icon-button.m3-icon-button {
         .button,
         .icon-button,
         .rail-link,
+        input[type="button"],
+        input[type="submit"],
+        input[type="reset"],
         md-filled-button.m3-button,
         md-filled-tonal-button.m3-button,
         md-text-button.m3-button,
         md-icon-button.m3-icon-button
-    ),
-    .role-switch [data-role="tab"][data-aria-selected]:not([data-aria-selected="false"]) {
+    ) {
         animation: none;
         transition-duration: 0.01ms;
     }
@@ -2483,6 +2472,9 @@ md-icon-button.m3-icon-button {
         .button,
         .icon-button,
         .rail-link,
+        input[type="button"],
+        input[type="submit"],
+        input[type="reset"],
         md-filled-button.m3-button,
         md-filled-tonal-button.m3-button,
         md-text-button.m3-button,
@@ -2493,6 +2485,9 @@ md-icon-button.m3-icon-button {
         .button,
         .icon-button,
         .rail-link,
+        input[type="button"],
+        input[type="submit"],
+        input[type="reset"],
         md-filled-button.m3-button,
         md-filled-tonal-button.m3-button,
         md-text-button.m3-button,
@@ -2632,9 +2627,6 @@ md-icon-button.m3-icon-button {
     font-size: 15px;
 }
 @media (max-width: 700px) {
-    .search-bar:focus-within {
-        transform: scaleX(1.025);
-    }
     .page-header h1 {
         font-size: 34px;
     }
