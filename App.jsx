@@ -15,6 +15,7 @@ import {
     Info,
     ImageOff,
     LayoutDashboard,
+    Layers,
     Lightbulb,
     LogIn,
     LogOut,
@@ -601,12 +602,12 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
                 </div>
                 <div className="mobile-navigation-menu">
                     <M3eFab
-                        variant="primary"
+                        variant="primary-container"
                         size="large"
                         aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
                     >
                         <M3eFabMenuTrigger for="mobile-navigation-menu">
-                            <Plus size={24} aria-hidden="true" />
+                            <Layers size={24} aria-hidden="true" />
                         </M3eFabMenuTrigger>
                     </M3eFab>
                     <M3eFabMenu
