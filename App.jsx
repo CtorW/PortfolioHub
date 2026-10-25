@@ -18,6 +18,7 @@ import {
     Lightbulb,
     LogIn,
     LogOut,
+    Mail,
     Mic,
     Moon,
     PanelsTopLeft,
@@ -37,6 +38,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import "@m3e/shape";
 import { Hct, SchemeExpressive, argbFromHex, hexFromArgb } from "@material/material-color-utilities";
 import {
     createUserWithEmailAndPassword,
@@ -70,6 +72,7 @@ const AUTO_APPROVE_FACULTY = String(import.meta.env.VITE_AUTO_APPROVE_FACULTY ||
 const PROJECT_CATEGORIES = ["Systems", "AI", "Applications", "Websites"];
 const PROJECT_FILTERS = ["All", ...PROJECT_CATEGORIES];
 const PROJECT_PAGE_SIZE = 24;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COLOR_PALETTES = [
     { id: "green", name: "Meadow", seed: "#97d945" },
     { id: "terracotta", name: "Terracotta", seed: "#b33b15" },
@@ -161,6 +164,72 @@ function expressiveColorScheme(paletteId, theme) {
         ]),
     );
 }
+
+const EXPRESSIVE_BACKGROUND_SHAPES = [
+    { name: "puffy", color: "primary-container", size: 220 },
+    { name: "4-leaf-clover", color: "tertiary-container", size: 170 },
+    { name: "soft-boom", color: "secondary-container", size: 200 },
+    { name: "ghost-ish", color: "primary-fixed-dim", size: 150 },
+    { name: "puffy-diamond", color: "tertiary-fixed-dim", size: 190 },
+    { name: "flower", color: "secondary-fixed", size: 160 },
+];
+
+function DriftingExpressiveShape({ name, color, size }) {
+    const [trajectory] = useState(() => {
+        const randomOffset = () => `${Math.round(Math.random() * 70 - 35)}vw`;
+        const randomVerticalOffset = () => `${Math.round(Math.random() * 70 - 35)}vh`;
+        return {
+            left: `${Math.round(Math.random() * 100)}%`,
+            top: `${Math.round(Math.random() * 100)}%`,
+            duration: `${85 + Math.round(Math.random() * 50)}s`,
+            delay: `${-Math.round(Math.random() * 80)}s`,
+            "--drift-x-1": randomOffset(),
+            "--drift-y-1": randomVerticalOffset(),
+            "--drift-x-2": randomOffset(),
+            "--drift-y-2": randomVerticalOffset(),
+            "--drift-x-3": randomOffset(),
+            "--drift-y-3": randomVerticalOffset(),
+        };
+    });
+
+    return (
+        <div
+            className="expressive-shape-drift"
+            style={{
+                width: size,
+                height: size,
+                left: trajectory.left,
+                top: trajectory.top,
+                animationDuration: trajectory.duration,
+                animationDelay: trajectory.delay,
+                "--drift-x-1": trajectory["--drift-x-1"],
+                "--drift-y-1": trajectory["--drift-y-1"],
+                "--drift-x-2": trajectory["--drift-x-2"],
+                "--drift-y-2": trajectory["--drift-y-2"],
+                "--drift-x-3": trajectory["--drift-x-3"],
+                "--drift-y-3": trajectory["--drift-y-3"],
+                "--expressive-shape-color": `var(--md-sys-color-${color})`,
+            }}
+        >
+            <m3e-shape
+                class="expressive-shape"
+                name={name}
+                aria-hidden="true"
+            />
+        </div>
+    );
+}
+
+function ExpressiveBackground() {
+    return (
+        <div className="expressive-background" aria-hidden="true">
+            {EXPRESSIVE_BACKGROUND_SHAPES.map(shape => (
+                <DriftingExpressiveShape key={shape.name} {...shape} />
+            ))}
+        </div>
+    );
+}
+
 function ollamaBaseUrl() {
     if (OLLAMA_BASE_URL) return OLLAMA_BASE_URL;
     const protocol = window.location.protocol === "https:" ? "https:" : "http:";
@@ -171,7 +240,7 @@ Answer concise questions about this application's workflow using only these fact
 - Firebase Authentication handles sign-in and faculty registration. Firestore stores user profiles and capstones.
 - Faculty access requests require an address ending in .sjc@phinmaed.com.
 - An admin reviews and approves faculty access requests in the Faculty accounts view.
-- Approved faculty can publish a capstone by providing its title, capstone leader's name, category (Systems, AI, Applications, or Websites), description, public image URL, and repository URL. A demo video is optional.
+- Approved faculty can publish a capstone by providing its title, capstone leader's name, category (Systems, AI, Applications, or Websites), description, public image URL, and repository URL. A group contact email and demo video are optional.
 - Publishing a capstone makes it public immediately. The app currently has no draft or pending-capstone approval state.
 - Admins can edit or delete published capstones.
 - Pending and approved refer to faculty access accounts, not student capstones.
@@ -411,9 +480,7 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
                 }}
             >
                 <span className="brand-mark" aria-hidden="true">
-                    <svg className="brand-mark-shape" viewBox="0 0 100 100" focusable="false">
-                        <path d="M50 12 C62 12 64 3 75 3 C87 3 97 13 97 25 C97 37 88 38 88 50 C88 62 97 64 97 75 C97 87 87 97 75 97 C63 97 62 88 50 88 C38 88 36 97 25 97 C13 97 3 87 3 75 C3 63 12 62 12 50 C12 38 3 36 3 25 C3 13 13 3 25 3 C37 3 38 12 50 12 Z" />
-                    </svg>
+                    <m3e-shape class="brand-mark-shape" name="4-leaf-clover" />
                     <span className="brand-mark-text">PH</span>
                 </span>
                 <span className="brand-name">PortfoliHub</span>
@@ -786,9 +853,7 @@ function ShowcaseFooter() {
                 <div className="footer-brand-block">
                     <a className="footer-brand" href="#showcase">
                         <span className="brand-mark" aria-hidden="true">
-                            <svg className="brand-mark-shape" viewBox="0 0 100 100" focusable="false">
-                                <path d="M50 12 C62 12 64 3 75 3 C87 3 97 13 97 25 C97 37 88 38 88 50 C88 62 97 64 97 75 C97 87 87 97 75 97 C63 97 62 88 50 88 C38 88 36 97 25 97 C13 97 3 87 3 75 C3 63 12 62 12 50 C12 38 3 36 3 25 C3 13 13 3 25 3 C37 3 38 12 50 12 Z" />
-                            </svg>
+                            <m3e-shape class="brand-mark-shape" name="4-leaf-clover" />
                             <span className="brand-mark-text">PH</span>
                         </span>
                         <strong>PortfoliHub</strong>
@@ -1033,6 +1098,8 @@ function ProjectArticleView({
     const repo = repositoryUrl(project.repositoryUrl);
     const image = project.imageUrl ? projectImage(project.imageUrl) : null;
     const video = project.demoVideoUrl ? projectVideo(project.demoVideoUrl) : null;
+    const contactEmail = String(project.contactEmail || "").trim();
+    const validContactEmail = EMAIL_PATTERN.test(contactEmail) && contactEmail.length <= 254;
 
     return (
         <article className="project-article">
@@ -1078,6 +1145,14 @@ function ProjectArticleView({
                                 <dd>{project.contributors.join(", ")}</dd>
                             </div>
                         )}
+                        {validContactEmail && (
+                            <div>
+                                <dt>Team contact</dt>
+                                <dd>
+                                    <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+                                </dd>
+                            </div>
+                        )}
                         <div>
                             <dt>Published</dt>
                             <dd>{project.createdLabel || "Recently added"}</dd>
@@ -1093,6 +1168,16 @@ function ProjectArticleView({
                             rel="noreferrer"
                         >
                             View repository
+                        </MaterialButton>
+                    )}
+                    {validContactEmail && (
+                        <MaterialButton
+                            variant="tonal"
+                            className="article-resource-button"
+                            icon={Mail}
+                            href={`mailto:${contactEmail}`}
+                        >
+                            Email capstone team
                         </MaterialButton>
                     )}
                     {canManage && (
@@ -1386,6 +1471,7 @@ function UploadView({ session, publish }) {
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
+            contactEmail: String(data.get("contactEmail") || "").trim(),
             demoVideoUrl: String(data.get("demoVideoUrl")).trim(),
         });
     }
@@ -1420,6 +1506,9 @@ function UploadView({ session, publish }) {
                                 <p className="preview-attribution">Contributors: {preview.contributors.join(", ")}</p>
                             )}
                             <p className="preview-attribution">Repository: {preview.repositoryUrl}</p>
+                            {preview.contactEmail && (
+                                <p className="preview-attribution">Team contact: {preview.contactEmail}</p>
+                            )}
                         </article>
                         <div className="form-actions">
                             <MaterialButton variant="tonal" onClick={() => setPreview(null)}>
@@ -1504,6 +1593,16 @@ function UploadView({ session, publish }) {
                         </span>
                         <input name="repositoryUrl" type="url" required placeholder="https://github.com/team/project" />
                         <small>Use the group's public GitHub repository or another public code host.</small>
+                    </label>
+                    <label className="form-field">
+                        <span>Group contact email</span>
+                        <input
+                            name="contactEmail"
+                            type="email"
+                            maxLength="254"
+                            placeholder="team@example.com"
+                        />
+                        <small>Optional. This public address lets visitors contact the capstone team.</small>
                     </label>
                     <label className="form-field">
                         <span>Demo video URL</span>
@@ -2093,6 +2192,7 @@ function ProjectDialog({ dialog, close, save, remove }) {
             description: String(data.get("description")).trim(),
             imageUrl: String(data.get("imageUrl") || "").trim(),
             repositoryUrl: String(data.get("repositoryUrl")).trim(),
+            contactEmail: String(data.get("contactEmail") || "").trim(),
             demoVideoUrl: String(data.get("demoVideoUrl")).trim(),
         });
     }
@@ -2188,6 +2288,17 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                     required
                                     defaultValue={dialog.project.repositoryUrl}
                                 />
+                            </label>
+                            <label className="form-field">
+                                <span>Group contact email</span>
+                                <input
+                                    name="contactEmail"
+                                    type="email"
+                                    maxLength="254"
+                                    placeholder="team@example.com"
+                                    defaultValue={dialog.project.contactEmail || ""}
+                                />
+                                <small>Optional. This public address lets visitors contact the capstone team.</small>
                             </label>
                             <label className="form-field">
                                 <span>Demo video URL</span>
@@ -2799,6 +2910,10 @@ export default function App() {
         }
         const repo = repositoryUrl(data.repositoryUrl);
         if (!repo) return notify("Enter a valid HTTP or HTTPS repository URL.");
+        const contactEmail = String(data.contactEmail || "").trim();
+        if (contactEmail && (contactEmail.length > 254 || !EMAIL_PATTERN.test(contactEmail))) {
+            return notify("Enter a valid group contact email address.");
+        }
         const imageUrl = String(data.imageUrl || "").trim();
         const image = imageUrl ? projectImage(imageUrl) : null;
         if (imageUrl && !image) return notify("Enter a valid public image URL for the capstone.");
@@ -2814,6 +2929,7 @@ export default function App() {
                 contributors,
                 imageUrl: image?.url || "",
                 repositoryUrl: repo,
+                contactEmail,
                 demoVideoUrl: video?.url || "",
                 facultyUid: session.uid,
                 facultyEmail: session.email,
@@ -2843,6 +2959,10 @@ export default function App() {
             return notify("Enter up to 12 contributor names, each no longer than 100 characters.");
         }
         if (!repositoryUrl(changes.repositoryUrl)) return notify("Enter a valid HTTP or HTTPS repository URL.");
+        const contactEmail = String(changes.contactEmail || "").trim();
+        if (contactEmail && (contactEmail.length > 254 || !EMAIL_PATTERN.test(contactEmail))) {
+            return notify("Enter a valid group contact email address.");
+        }
         const imageUrl = String(changes.imageUrl || "").trim();
         const image = imageUrl ? projectImage(imageUrl) : null;
         if (imageUrl && !image) return notify("Enter a valid public image URL for the capstone.");
@@ -2856,6 +2976,7 @@ export default function App() {
                 leaderName,
                 category,
                 contributors,
+                contactEmail,
                 imageUrl: image?.url || "",
                 demoVideoUrl: video?.url || "",
                 updatedAt: serverTimestamp(),
@@ -3108,6 +3229,7 @@ export default function App() {
     const routeKey = `${session?.role || "public"}-${view}-${authRole}`;
     return (
         <div className="app-shell">
+            <ExpressiveBackground />
             <NavRail
                 session={session}
                 view={view === "project" ? projectReturnView : view}

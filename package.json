@@ -10,6 +10,7 @@
         "test:rules": "node --test tests/firestore.rules.test.js"
     },
     "dependencies": {
+        "@m3e/shape": "^1.3.1",
         "@material/material-color-utilities": "^0.4.0",
         "@material/web": "^2.5.0",
         "firebase": "^12.19.0",

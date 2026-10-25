@@ -14,6 +14,7 @@ const validProject = overrides => ({
     description: "A capstone project description.",
     imageUrl: "https://example.com/cover.jpg",
     repositoryUrl: "https://github.com/team/project",
+    contactEmail: "",
     demoVideoUrl: "",
     facultyUid: "faculty-1",
     facultyEmail: "faculty@phinmaed.com",
@@ -62,6 +63,24 @@ beforeEach(async () => {
 
 test("approved faculty can publish a valid capstone", async () => {
     await assertSucceeds(setDoc(doc(facultyDb(), "projects", "project-1"), validProject()));
+});
+
+test("approved faculty can publish a capstone with a group contact email", async () => {
+    await assertSucceeds(
+        setDoc(doc(facultyDb(), "projects", "project-1"), validProject({ contactEmail: "team@example.com" })),
+    );
+});
+
+test("faculty cannot publish a capstone with an oversized contact email", async () => {
+    await assertFails(
+        setDoc(doc(facultyDb(), "projects", "project-1"), validProject({ contactEmail: "a".repeat(255) })),
+    );
+});
+
+test("faculty can publish a capstone without a contact email", async () => {
+    const project = validProject();
+    delete project.contactEmail;
+    await assertSucceeds(setDoc(doc(facultyDb(), "projects", "project-1"), project));
 });
 
 test("faculty cannot publish an unsupported category", async () => {
