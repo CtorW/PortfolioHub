@@ -38,7 +38,10 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import "@m3e/shape";
+import { M3eFab } from "@m3e/react/fab";
+import { M3eFabMenu, M3eFabMenuItem, M3eFabMenuTrigger } from "@m3e/react/fab-menu";
+import { M3eShape } from "@m3e/react/shape";
+import { M3eTheme } from "@m3e/react/theme";
 import { Hct, SchemeExpressive, argbFromHex, hexFromArgb } from "@material/material-color-utilities";
 import {
     createUserWithEmailAndPassword,
@@ -211,8 +214,8 @@ function DriftingExpressiveShape({ name, color, size }) {
                 "--expressive-shape-color": `var(--md-sys-color-${color})`,
             }}
         >
-            <m3e-shape
-                class="expressive-shape"
+            <M3eShape
+                className="expressive-shape"
                 name={name}
                 aria-hidden="true"
             />
@@ -449,6 +452,7 @@ function PageHeader({ title, subtitle, session }) {
 }
 
 function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSettings }) {
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const publicItems = [
         ["showcase", "Showcase", PanelsTopLeft],
         ["portal", "Portal", LogIn],
@@ -480,7 +484,7 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
                 }}
             >
                 <span className="brand-mark" aria-hidden="true">
-                    <m3e-shape class="brand-mark-shape" name="4-leaf-clover" />
+                    <M3eShape className="brand-mark-shape" name="4-leaf-clover" />
                     <span className="brand-mark-text">PH</span>
                 </span>
                 <span className="brand-name">PortfoliHub</span>
@@ -552,6 +556,69 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
                         </button>
                     </>
                 ) : null}
+            </div>
+            <div className="mobile-navigation" aria-label="Mobile navigation">
+                <div className="mobile-navigation-actions">
+                    <button
+                        type="button"
+                        className="mobile-navigation-action"
+                        aria-label="Settings"
+                        title="Settings"
+                        onClick={openSettings}
+                    >
+                        <Settings2 size={21} aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        className="mobile-navigation-action"
+                        aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                        title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                        onClick={toggleTheme}
+                    >
+                        {theme === "dark" ? <Sun size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
+                    </button>
+                    {session ? (
+                        <button
+                            type="button"
+                            className="mobile-navigation-action"
+                            aria-label="Sign out"
+                            title="Sign out"
+                            onClick={signOut}
+                        >
+                            <LogOut size={21} aria-hidden="true" />
+                        </button>
+                    ) : null}
+                </div>
+                <div className="mobile-navigation-menu">
+                    <M3eFab
+                        variant="primary"
+                        size="large"
+                        aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
+                    >
+                        <M3eFabMenuTrigger for="mobile-navigation-menu">
+                            <Plus size={24} aria-hidden="true" />
+                        </M3eFabMenuTrigger>
+                    </M3eFab>
+                    <M3eFabMenu
+                        id="mobile-navigation-menu"
+                        variant="primary"
+                        onToggle={event => setMobileMenuOpen(event.currentTarget.matches(":popover-open"))}
+                    >
+                        {roleItems.map(([destination, label, Icon]) => {
+                            const active = view === destination || (view === "login" && destination === "portal");
+                            return (
+                                <M3eFabMenuItem
+                                    key={destination}
+                                    aria-current={active ? "page" : undefined}
+                                    onClick={() => navigate(destination)}
+                                >
+                                    <Icon slot="icon" size={20} aria-hidden="true" />
+                                    {label}
+                                </M3eFabMenuItem>
+                            );
+                        })}
+                    </M3eFabMenu>
+                </div>
             </div>
         </aside>
     );
@@ -853,7 +920,7 @@ function ShowcaseFooter() {
                 <div className="footer-brand-block">
                     <a className="footer-brand" href="#showcase">
                         <span className="brand-mark" aria-hidden="true">
-                            <m3e-shape class="brand-mark-shape" name="4-leaf-clover" />
+                            <M3eShape className="brand-mark-shape" name="4-leaf-clover" />
                             <span className="brand-mark-text">PH</span>
                         </span>
                         <strong>PortfoliHub</strong>
@@ -2551,6 +2618,7 @@ export default function App() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [dialog, setDialog] = useState(null);
     const [toast, setToast] = useState("");
+    const themeRootRef = useRef(null);
     const authCheckRef = useRef(0);
     const projectRouteTouchedRef = useRef(new URLSearchParams(window.location.search).has("project"));
     const projectCursorRef = useRef(null);
@@ -2592,7 +2660,9 @@ export default function App() {
         root.style.colorScheme = theme;
         for (const [property, value] of Object.entries({ ...colors, ...aliases })) {
             root.style.setProperty(property, value);
+            themeRootRef.current?.style.setProperty(property, value);
         }
+        themeRootRef.current?.style.setProperty("color-scheme", theme);
         document.querySelector('meta[name="theme-color"]')?.setAttribute("content", aliases["--surface"]);
     }, [theme, palette]);
     useEffect(() => {
@@ -3227,68 +3297,78 @@ export default function App() {
         );
 
     const routeKey = `${session?.role || "public"}-${view}-${authRole}`;
+    const paletteSeed = COLOR_PALETTES.find(option => option.id === palette)?.seed || COLOR_PALETTES[0].seed;
     return (
-        <div className="app-shell">
-            <ExpressiveBackground />
-            <NavRail
-                session={session}
-                view={view === "project" ? projectReturnView : view}
-                navigate={navigate}
-                signOut={signOut}
-                theme={theme}
-                toggleTheme={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
-                openSettings={() => setSettingsOpen(true)}
-            />
-            <main className="app-main">
-                <AnimatePresence mode="wait" initial={false}>
-                    <motion.div
-                        className="app-content"
-                        key={routeKey}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        {content}
-                    </motion.div>
+        <M3eTheme
+            ref={themeRootRef}
+            className="m3e-motion-theme"
+            color={paletteSeed}
+            scheme={theme}
+            variant="expressive"
+            motion="expressive"
+        >
+            <div className="app-shell">
+                <ExpressiveBackground />
+                <NavRail
+                    session={session}
+                    view={view === "project" ? projectReturnView : view}
+                    navigate={navigate}
+                    signOut={signOut}
+                    theme={theme}
+                    toggleTheme={() => setTheme(current => (current === "dark" ? "light" : "dark"))}
+                    openSettings={() => setSettingsOpen(true)}
+                />
+                <main className="app-main">
+                    <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                            className="app-content"
+                            key={routeKey}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            {content}
+                        </motion.div>
+                    </AnimatePresence>
+                </main>
+                <AnimatePresence>
+                    {dialog && (
+                        <ProjectDialog
+                            key={`${dialog.kind}-${dialog.project.id}`}
+                            dialog={dialog}
+                            close={() => setDialog(null)}
+                            save={saveProject}
+                            remove={deleteProject}
+                        />
+                    )}
                 </AnimatePresence>
-            </main>
-            <AnimatePresence>
-                {dialog && (
-                    <ProjectDialog
-                        key={`${dialog.kind}-${dialog.project.id}`}
-                        dialog={dialog}
-                        close={() => setDialog(null)}
-                        save={saveProject}
-                        remove={deleteProject}
-                    />
-                )}
-            </AnimatePresence>
-            <AnimatePresence>
-                {settingsOpen && (
-                    <SettingsDialog
-                        close={() => setSettingsOpen(false)}
-                        theme={theme}
-                        setTheme={setTheme}
-                        palette={palette}
-                        setPalette={setPalette}
-                    />
-                )}
-            </AnimatePresence>
-            <AnimatePresence>
-                {toast && (
-                    <motion.div
-                        className="toast-region toast-visible"
-                        role="status"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                    >
-                        {toast}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            <LinkRipples />
-        </div>
+                <AnimatePresence>
+                    {settingsOpen && (
+                        <SettingsDialog
+                            close={() => setSettingsOpen(false)}
+                            theme={theme}
+                            setTheme={setTheme}
+                            palette={palette}
+                            setPalette={setPalette}
+                        />
+                    )}
+                </AnimatePresence>
+                <AnimatePresence>
+                    {toast && (
+                        <motion.div
+                            className="toast-region toast-visible"
+                            role="status"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 8 }}
+                        >
+                            {toast}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                <LinkRipples />
+            </div>
+        </M3eTheme>
     );
 }
