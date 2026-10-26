@@ -603,7 +603,7 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
                 <div className="mobile-navigation-menu">
                     <M3eFab
                         variant="primary-container"
-                        size="large"
+                        size="small"
                         aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}
                     >
                         <M3eFabMenuTrigger for="mobile-navigation-menu">
