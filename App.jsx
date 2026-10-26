@@ -39,9 +39,14 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { M3eButton } from "@m3e/react/button";
+import { M3eButtonGroup } from "@m3e/react/button-group";
 import { M3eFab } from "@m3e/react/fab";
 import { M3eFabMenu, M3eFabMenuItem, M3eFabMenuTrigger } from "@m3e/react/fab-menu";
+import { M3eIconButton } from "@m3e/react/icon-button";
 import { M3eLoadingIndicator } from "@m3e/react/loading-indicator";
+import { M3eNavItem } from "@m3e/react/nav-bar";
+import { M3eNavRail } from "@m3e/react/nav-rail";
 import { M3eShape } from "@m3e/react/shape";
 import { M3eTheme } from "@m3e/react/theme";
 import { Hct, SchemeExpressive, argbFromHex, hexFromArgb } from "@material/material-color-utilities";
@@ -484,88 +489,74 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
           ]
         : publicItems;
     return (
-        <aside className="nav-rail" aria-label="Main navigation">
-            <a
-                className="rail-brand"
-                href="#showcase"
-                aria-label="PortfoliHub showcase"
-                onClick={event => {
-                    event.preventDefault();
-                    navigate("showcase");
-                }}
-            >
-                <span className="brand-mark" aria-hidden="true">
-                    <M3eShape className="brand-mark-shape" name="4-leaf-clover" />
-                    <span className="brand-mark-text">PH</span>
-                </span>
-                <span className="brand-name">PortfoliHub</span>
-            </a>
-            <nav className="rail-links" aria-label="Workspace">
+        <>
+            <M3eNavRail className="nav-rail" mode="compact" aria-label="Main navigation">
+                <a
+                    className="rail-brand"
+                    href="#showcase"
+                    aria-label="PortfoliHub showcase"
+                    onClick={event => {
+                        event.preventDefault();
+                        navigate("showcase");
+                    }}
+                >
+                    <span className="brand-mark" aria-hidden="true">
+                        <M3eShape className="brand-mark-shape" name="4-leaf-clover" />
+                        <span className="brand-mark-text">PH</span>
+                    </span>
+                    <span className="brand-name">PortfoliHub</span>
+                </a>
                 {roleItems.map(([destination, label, Icon]) => {
                     const active = view === destination || (view === "login" && destination === "portal");
                     return (
-                        <a
+                        <M3eNavItem
                             key={destination}
-                            className={`rail-link ${active ? "is-active" : ""}`}
-                            href={`#${destination}`}
+                            className="rail-destination"
+                            selected={active}
                             aria-label={label}
-                            aria-current={active ? "page" : undefined}
                             onClick={event => {
                                 event.preventDefault();
                                 navigate(destination);
                             }}
                         >
-                            <span className="rail-link-icon">
-                                <Icon className="rail-icon" size={22} />
-                            </span>
-                            <span>{label}</span>
-                        </a>
+                            <Icon slot="icon" className="rail-icon" size={22} aria-hidden="true" />
+                            {label}
+                        </M3eNavItem>
                     );
                 })}
-            </nav>
-            <div className={`rail-bottom ${session ? "has-signout" : ""}`}>
-                <button
-                    type="button"
-                    className="rail-link rail-settings"
+            </M3eNavRail>
+            <div className="rail-bottom">
+                <M3eIconButton
+                    className="rail-action"
+                    variant="standard"
+                    size="small"
                     aria-label="Settings"
                     title="Settings"
                     onClick={openSettings}
                 >
-                    <span className="rail-link-icon">
-                        <Settings2 className="rail-icon" size={22} />
-                    </span>
-                    <span>Settings</span>
-                </button>
-                <button
-                    type="button"
-                    className="rail-link rail-theme-toggle"
+                    <Settings2 size={22} aria-hidden="true" />
+                </M3eIconButton>
+                <M3eIconButton
+                    className="rail-action"
+                    variant="standard"
+                    size="small"
                     aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
                     title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
                     onClick={toggleTheme}
                 >
-                    <span className="rail-link-icon">
-                        {theme === "dark" ? (
-                            <Sun className="rail-icon" size={22} />
-                        ) : (
-                            <Moon className="rail-icon" size={22} />
-                        )}
-                    </span>
-                    <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
-                </button>
+                    {theme === "dark" ? <Sun size={22} aria-hidden="true" /> : <Moon size={22} aria-hidden="true" />}
+                </M3eIconButton>
                 {session ? (
-                    <>
-                        <button
-                            type="button"
-                            className="rail-link rail-signout"
-                            aria-label="Sign out"
-                            onClick={signOut}
-                        >
-                            <span className="rail-link-icon">
-                                <LogOut className="rail-icon" size={22} aria-hidden="true" />
-                            </span>
-                            <span>Sign out</span>
-                        </button>
-                    </>
+                    <M3eIconButton
+                        className="rail-action"
+                        variant="standard"
+                        size="small"
+                        aria-label="Sign out"
+                        title="Sign out"
+                        onClick={signOut}
+                    >
+                        <LogOut size={22} aria-hidden="true" />
+                    </M3eIconButton>
                 ) : null}
             </div>
             <div className="mobile-navigation" aria-label="Mobile navigation">
@@ -631,7 +622,7 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
                     </M3eFabMenu>
                 </div>
             </div>
-        </aside>
+        </>
     );
 }
 
@@ -1370,6 +1361,27 @@ function ShowcaseView({
     onVoiceSearch,
 }) {
     const [category, setCategory] = useState("All");
+    const renderCategoryGroup = (items, label) => (
+        <M3eButtonGroup
+            variant="connected"
+            size="small"
+            multi
+            aria-label={label}
+        >
+            {items.map(item => (
+                <M3eButton
+                    key={item}
+                    variant="tonal"
+                    size="small"
+                    toggle
+                    selected={category === item}
+                    onClick={() => setCategory(item)}
+                >
+                    {item}
+                </M3eButton>
+            ))}
+        </M3eButtonGroup>
+    );
     return (
         <>
             <PageHeader
@@ -1411,18 +1423,14 @@ function ShowcaseView({
                         onVoiceSearch={onVoiceSearch}
                     />
                 </div>
-                <div className="project-category-filters" role="group" aria-label="Filter capstones by category">
-                    {PROJECT_FILTERS.map(item => (
-                        <button
-                            key={item}
-                            type="button"
-                            className={`project-category-filter${category === item ? " is-selected" : ""}`}
-                            aria-pressed={category === item}
-                            onClick={() => setCategory(item)}
-                        >
-                            {item}
-                        </button>
-                    ))}
+                <div className="project-category-filters">
+                    <div className="project-category-filters-desktop">
+                        {renderCategoryGroup(PROJECT_FILTERS, "Filter capstones by category")}
+                    </div>
+                    <div className="project-category-filters-mobile">
+                        {renderCategoryGroup(PROJECT_FILTERS.slice(0, 3), "Filter capstones by category, first row")}
+                        {renderCategoryGroup(PROJECT_FILTERS.slice(3), "Filter capstones by category, second row")}
+                    </div>
                 </div>
                 <ProjectGrid
                     projects={projects}
