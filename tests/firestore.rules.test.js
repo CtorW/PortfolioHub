@@ -65,6 +65,19 @@ test("approved faculty can publish a valid capstone", async () => {
     await assertSucceeds(setDoc(doc(facultyDb(), "projects", "project-1"), validProject()));
 });
 
+test("approved admin can publish a valid capstone", async () => {
+    await assertSucceeds(
+        setDoc(
+            doc(adminDb(), "projects", "project-1"),
+            validProject({
+                facultyUid: "admin-1",
+                facultyEmail: "admin@phinmaed.com",
+                facultyName: "Admin Publisher",
+            }),
+        ),
+    );
+});
+
 test("approved faculty can publish a capstone with a group contact email", async () => {
     await assertSucceeds(
         setDoc(doc(facultyDb(), "projects", "project-1"), validProject({ contactEmail: "team@example.com" })),

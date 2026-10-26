@@ -3171,7 +3171,11 @@ export default function App() {
             setView(session.role === "admin" ? "manage-projects" : "my-projects");
             notify("Capstone published to the public showcase.");
         } catch (error) {
-            notify(`Could not publish capstone: ${error.message}`);
+            const message =
+                error.code === "permission-denied"
+                    ? `Firestore rejected this write. Confirm the deployed Firestore rules are current and this account has an approved admin or faculty profile. (${error.message})`
+                    : error.message;
+            notify(`Could not publish capstone: ${message}`);
         }
     }
     async function saveProject(id, changes) {
