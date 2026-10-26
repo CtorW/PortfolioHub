@@ -201,6 +201,23 @@ textarea:focus-visible {
     gap: 5px;
     border-radius: 22px;
 }
+.rail-brand-mark {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    overflow: hidden;
+    border-radius: 18px;
+    flex: 0 0 auto;
+}
+.rail-brand-logo {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 128px;
+    height: 128px;
+    max-width: none;
+    transform: translate(-50%, -50%);
+}
 .brand-mark {
     position: relative;
     width: 64px;

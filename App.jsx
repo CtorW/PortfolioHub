@@ -500,9 +500,12 @@ function NavRail({ session, view, navigate, signOut, theme, toggleTheme, openSet
                         navigate("showcase");
                     }}
                 >
-                    <span className="brand-mark" aria-hidden="true">
-                        <M3eShape className="brand-mark-shape" name="4-leaf-clover" />
-                        <span className="brand-mark-text">PH</span>
+                    <span className="rail-brand-mark" aria-hidden="true">
+                        <img
+                            className="rail-brand-logo"
+                            src={`${import.meta.env.BASE_URL}assets/logoapp-sidebar.png`}
+                            alt=""
+                        />
                     </span>
                     <span className="brand-name">PortfoliHub</span>
                 </a>
