@@ -2959,8 +2959,11 @@ export default function App() {
                 if (publicCatalog) {
                     if (!loadedMoreProjectsRef.current) projectCursorRef.current = snapshot.docs.at(-1) || null;
                     setProjects(current => {
-                        const pageIds = new Set(records.map(project => project.id));
-                        return [...records, ...current.filter(project => !pageIds.has(project.id))];
+                        const snapshotIds = new Set(snapshot.docs.map(project => project.id));
+                        return [
+                            ...records,
+                            ...current.filter(project => !snapshotIds.has(project.id) && project.status !== "deleted"),
+                        ];
                     });
                     setHasMoreProjects(snapshot.docs.length === PROJECT_PAGE_SIZE);
                     getCountFromServer(collection(db, "projects"))
