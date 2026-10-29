@@ -1019,7 +1019,16 @@ function ProjectCard({ project, canManage, canRequestDelete, index = 0, onOpen, 
                 </div>
                 <h3>{project.title}</h3>
                 <span className="project-category-label">{project.category || "Capstone project"}</span>
-                <p className="project-description">{project.description}</p>
+                <p
+                    className={`project-description${String(project.description || "").length > 180 ? " project-description-long" : ""}`}
+                >
+                    {project.description}
+                    {String(project.description || "").length > 180 && (
+                        <span className="project-read-more" aria-hidden="true">
+                            Read more
+                        </span>
+                    )}
+                </p>
                 <div className="project-card-footer">
                     <span className="project-owner">
                         <School size={16} /> {project.leaderName || project.facultyName || "Capstone leader"}

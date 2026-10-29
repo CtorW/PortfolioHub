@@ -1005,6 +1005,36 @@ md-menu.assistant-model-menu {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
+.project-description-long {
+    position: relative;
+    max-height: 6.8em;
+    padding-bottom: 1.5em;
+    overflow: hidden;
+}
+.project-description-long::before {
+    content: "";
+    position: absolute;
+    inset: 3.2em 0 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--surface-low) 82%);
+}
+.project-read-more {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    padding-left: 32px;
+    background: linear-gradient(to right, transparent, var(--surface-low) 28%);
+    color: var(--primary-deep);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.project-card:has(.project-card-link:hover) .project-read-more {
+    background: linear-gradient(to right, transparent, var(--surface-high) 28%);
+}
 .project-demo {
     width: 100%;
     aspect-ratio: 16 / 9;
