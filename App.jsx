@@ -1773,7 +1773,15 @@ function UploadView({ session, publish }) {
     );
 }
 
-function ManageProjectsView({ session, projects, query, setQuery, openDialog, onOpenProject, onVoiceSearch }) {
+function ManageProjectsView({
+    session,
+    projects,
+    query,
+    setQuery,
+    openDialog,
+    onOpenProject,
+    onVoiceSearch,
+}) {
     return (
         <>
             <PageHeader
@@ -2786,6 +2794,7 @@ export default function App() {
     const [toast, setToast] = useState("");
     const [loadingTasks, setLoadingTasks] = useState([]);
     const [loadingAdminData, setLoadingAdminData] = useState(false);
+    const [deletingProject, setDeletingProject] = useState(null);
     const themeRootRef = useRef(null);
     const authCheckRef = useRef(0);
     const projectRouteTouchedRef = useRef(new URLSearchParams(window.location.search).has("project"));
@@ -2936,7 +2945,7 @@ export default function App() {
                 setLoadingProjects(false);
                 const records = snapshot.docs
                     .map(item => ({ ...item.data(), status: item.data().status || "published", id: item.id }))
-                    .filter(project => session?.role === "admin" || project.status !== "deleted");
+                    .filter(project => project.status !== "deleted");
                 records.sort((left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0));
                 if (publicCatalog) {
                     if (!loadedMoreProjectsRef.current) projectCursorRef.current = snapshot.docs.at(-1) || null;
@@ -3322,6 +3331,9 @@ export default function App() {
     }
     async function deleteProject(id) {
         if (!db) return notify("Firebase is not configured.");
+        const project = projects.find(item => item.id === id);
+        setDeletingProject(project || { id });
+        setProjects(current => current.filter(item => item.id !== id));
         try {
             await updateDoc(doc(db, "projects", id), {
                 status: "deleted",
@@ -3332,7 +3344,10 @@ export default function App() {
             if (selectedProjectId === id) backFromProject();
             notify("Capstone marked deleted and removed from the public showcase.");
         } catch (error) {
+            if (project) setProjects(current => [project, ...current]);
             notify(`Could not delete capstone: ${error.message}`);
+        } finally {
+            setDeletingProject(null);
         }
     }
     async function requestProjectDeletion(project) {
@@ -3624,6 +3639,12 @@ export default function App() {
                         <LoadingNotice
                             className="network-loading-notice"
                             label={loadingTasks.at(-1).label}
+                        />
+                    )}
+                    {deletingProject && (
+                        <LoadingNotice
+                            className="network-loading-notice"
+                            label="Updating capstone status and refreshing the showcase"
                         />
                     )}
                     <AnimatePresence mode="wait" initial={false}>
