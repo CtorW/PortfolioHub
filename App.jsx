@@ -3086,7 +3086,13 @@ export default function App() {
             setView("overview");
             setQuery("");
         } catch (error) {
-            notify(`Sign-in failed: ${error.message}`);
+            const message =
+                error.code === "auth/invalid-credential" || error.code === "auth/user-not-found"
+                    ? "No matching Firebase Authentication account was found. Register through the website first, then wait for admin approval; creating only a Firestore faculty document is not enough."
+                    : error.code === "auth/wrong-password"
+                      ? "The password is incorrect for this Firebase Authentication account."
+                      : error.message;
+            notify(`Sign-in failed: ${message}`);
         }
     }
     async function requestAccess({ name, email, password }) {
@@ -3333,7 +3339,7 @@ export default function App() {
         if (!db) return notify("Firebase is not configured.");
         try {
             await updateDoc(doc(db, "faculty", id), { status: "approved", updatedAt: serverTimestamp() });
-            notify("Faculty account approved.");
+            notify("Faculty access approved. The faculty member must already have a Firebase Authentication account created through registration.");
         } catch (error) {
             notify(`Could not approve faculty account: ${error.message}`);
         }
