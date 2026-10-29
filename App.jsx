@@ -1881,10 +1881,10 @@ function FacultyAccountsView({
     const active = facultyAccounts.filter(account => account.status === "approved");
     const rejected = facultyAccounts.filter(account => account.status === "rejected");
     const deleted = facultyAccounts.filter(account => account.status === "deleted");
-    const activeByDepartment = FACULTY_DEPARTMENTS.map(department => ({
-        department,
-        accounts: active.filter(account => (account.department || "Other") === department),
-    })).filter(group => group.accounts.length);
+    const [selectedDepartment, setSelectedDepartment] = useState("All");
+    const visibleActive = selectedDepartment === "All"
+        ? active
+        : active.filter(account => (account.department || "Other") === selectedDepartment);
     const pendingProjectDeletions = projectDeletionRequests.filter(request => request.status === "pending");
     const resolvedProjectDeletions = projectDeletionRequests.filter(request => request.status !== "pending");
     const pendingAccountDeletions = accountDeletionRequests.filter(request => request.status === "pending");
@@ -1985,17 +1985,43 @@ function FacultyAccountsView({
                             </h2>
                         </div>
                     </div>
-                    {active.length ? (
-                        activeByDepartment.map(group => (
-                            <div className="account-list" key={group.department}>
-                                <p className="overline account-department-divider">{group.department}</p>
-                                {group.accounts.map(account => (
-                                    <AccountRow key={account.id} account={account} status="approved" />
-                                ))}
-                            </div>
-                        ))
+                    <M3eButtonGroup variant="connected" size="small" aria-label="Faculty departments">
+                        <M3eButton
+                            variant="tonal"
+                            size="small"
+                            toggle
+                            selected={selectedDepartment === "All"}
+                            onClick={() => setSelectedDepartment("All")}
+                        >
+                            All departments
+                        </M3eButton>
+                        {FACULTY_DEPARTMENTS.map(department => (
+                            <M3eButton
+                                key={department}
+                                variant="tonal"
+                                size="small"
+                                toggle
+                                selected={selectedDepartment === department}
+                                onClick={() => setSelectedDepartment(department)}
+                            >
+                                {department}
+                            </M3eButton>
+                        ))}
+                    </M3eButtonGroup>
+                    <div className="panel-heading faculty-active-heading">
+                        <div>
+                            <p className="overline">ACTIVE ACCOUNTS</p>
+                            <h3>{selectedDepartment === "All" ? "All departments" : selectedDepartment} <span className="count-badge">{visibleActive.length}</span></h3>
+                        </div>
+                    </div>
+                    {visibleActive.length ? (
+                        <div className="account-list">
+                            {visibleActive.map(account => (
+                                <AccountRow key={account.id} account={account} status="approved" />
+                            ))}
+                        </div>
                     ) : (
-                        <p className="inline-empty">No approved faculty accounts.</p>
+                        <p className="inline-empty">No active faculty accounts in this department.</p>
                     )}
                 </section>
                 <section className="surface-panel">
@@ -2165,6 +2191,7 @@ function FacultyAccountsView({
 function LoginView({ role, setRole, login, requestAccess, requestOpen, setRequestOpen, session }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [department, setDepartment] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [submittingLabel, setSubmittingLabel] = useState("Processing sign-in");
     const requestRef = useRef(null);
@@ -2189,10 +2216,11 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                 name: String(data.get("name")).trim(),
                 email: String(data.get("email")).trim().toLowerCase(),
                 password: String(data.get("password")),
-                department: String(data.get("department") || ""),
+                department,
             });
             if (created) {
                 form.reset();
+                setDepartment("");
                 setRequestOpen(false);
             }
         } finally {
@@ -2297,7 +2325,13 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                                         <span>
                                             Department <b>Required</b>
                                         </span>
-                                        <M3eSelect name="department" required value="" aria-label="Department">
+                                        <M3eSelect
+                                            name="department"
+                                            required
+                                            value={department}
+                                            aria-label="Department"
+                                            onChange={event => setDepartment(event.currentTarget.value || "")}
+                                        >
                                             <M3eOption value="">Choose a department</M3eOption>
                                             {FACULTY_DEPARTMENTS.map(department => (
                                                 <M3eOption key={department} value={department}>

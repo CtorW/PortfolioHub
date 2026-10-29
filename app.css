@@ -1565,6 +1565,15 @@ md-menu.assistant-model-menu {
     padding-top: 12px;
     border-top: 1px solid var(--line);
 }
+.faculty-active-heading {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+}
+.faculty-active-heading h3 {
+    margin: 0;
+    font-size: 18px;
+}
 .account-row {
     min-height: 70px;
     display: grid;
