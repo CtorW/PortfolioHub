@@ -50,6 +50,7 @@ import { M3eNavRail } from "@m3e/react/nav-rail";
 import { M3eOption } from "@m3e/react/option";
 import { M3eSelect } from "@m3e/react/select";
 import { M3eShape } from "@m3e/react/shape";
+import { M3eLongPressGesture, M3ePanGesture } from "@m3e/react/gestures";
 import { M3eTheme } from "@m3e/react/theme";
 import { Hct, SchemeExpressive, argbFromHex, hexFromArgb } from "@material/material-color-utilities";
 import {
@@ -101,6 +102,94 @@ function LoadingNotice({ label, className = "" }) {
             <M3eLoadingIndicator variant="contained" aria-label={label} />
             <span>{label}</span>
         </div>
+    );
+}
+
+function PullToRefresh({ onRefresh }) {
+    const [pullDistance, setPullDistance] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
+    const threshold = 72;
+    const gestureRef = useRef(null);
+    const longPressRef = useRef(null);
+    const startYRef = useRef(null);
+    const armedRef = useRef(false);
+    const pullDistanceRef = useRef(0);
+    const refreshRef = useRef({ onRefresh, refreshing });
+    refreshRef.current = { onRefresh, refreshing };
+    useEffect(() => {
+        gestureRef.current?.attach(document.documentElement);
+        longPressRef.current?.attach(document.documentElement);
+        return () => {
+            gestureRef.current?.detach();
+            longPressRef.current?.detach();
+            document.documentElement.classList.remove("m3-gesture-active");
+        };
+    }, []);
+    function handleLongPress(event) {
+        if (event.detail.phase !== "start" || window.scrollY !== 0 || refreshRef.current.refreshing) return;
+        armedRef.current = true;
+        startYRef.current = event.detail.clientY;
+        document.documentElement.classList.add("m3-gesture-active");
+    }
+    async function handleGesture(event) {
+        const detail = event.detail;
+        if (startYRef.current === null || !armedRef.current || refreshRef.current.refreshing) return;
+        if (detail.phase === "update") {
+            const distance = Math.max(0, detail.clientY - startYRef.current);
+            const nextDistance = Math.min(distance * 0.45, 96);
+            pullDistanceRef.current = nextDistance;
+            setPullDistance(nextDistance);
+            return;
+        }
+        const shouldRefresh = pullDistanceRef.current >= threshold * 0.45;
+        startYRef.current = null;
+        armedRef.current = false;
+        pullDistanceRef.current = 0;
+        setPullDistance(0);
+        document.documentElement.classList.remove("m3-gesture-active");
+        if (detail.phase !== "end" || !shouldRefresh) return;
+        setRefreshing(true);
+        try {
+            await refreshRef.current.onRefresh();
+        } finally {
+            window.setTimeout(() => setRefreshing(false), 450);
+        }
+    }
+
+    const visible = refreshing || pullDistance > 0;
+    return (
+        <>
+            <M3ePanGesture
+                ref={gestureRef}
+                activationMode="press"
+                lockAxis="y"
+                minDisplacement={12}
+                pointerTypes={["touch"]}
+                onGesture={handleGesture}
+            />
+            <M3eLongPressGesture
+                ref={longPressRef}
+                discrete
+                minDuration={450}
+                maxDisplacement={16}
+                pointerTypes={["touch"]}
+                onGesture={handleLongPress}
+            />
+            {visible && <div
+                className="pull-to-refresh"
+                style={{ "--pull-progress": `${Math.min(pullDistance / (threshold * 0.45), 1) * 100}%` }}
+                role="status"
+                aria-live="polite"
+            >
+            <M3eLoadingIndicator
+                pullProgress={Math.min(pullDistance / (threshold * 0.45), 1)}
+                aria-label={refreshing ? "Refreshing website" : "Pull to refresh"}
+            />
+            <span>
+                {refreshing ? "Refreshing" : pullDistance >= threshold * 0.45 ? "Release to refresh" : "Pull to refresh"}
+            </span>
+            </div>}
+        </>
     );
 }
 const MATERIAL_COLOR_ROLES = [
@@ -2804,6 +2893,7 @@ export default function App() {
     const [loadingTasks, setLoadingTasks] = useState([]);
     const [loadingAdminData, setLoadingAdminData] = useState(false);
     const [deletingProject, setDeletingProject] = useState(null);
+    const [refreshKey, setRefreshKey] = useState(0);
     const themeRootRef = useRef(null);
     const authCheckRef = useRef(0);
     const projectRouteTouchedRef = useRef(new URLSearchParams(window.location.search).has("project"));
@@ -2983,7 +3073,7 @@ export default function App() {
                 setToast(`Could not load capstones: ${error.message}`);
             },
         );
-    }, [session?.role]);
+    }, [session?.role, refreshKey]);
 
     useEffect(() => {
         if (!db || session?.role !== "admin") {
@@ -3037,7 +3127,7 @@ export default function App() {
             unsubscribeDeletionRequests();
             unsubscribeAccountRequests();
         };
-    }, [session?.role]);
+    }, [session?.role, refreshKey]);
     useEffect(() => {
         if (!toast) return undefined;
         const timer = window.setTimeout(() => setToast(""), 3200);
@@ -3087,6 +3177,10 @@ export default function App() {
     }, [selectedProjectId, projects]);
 
     const notify = message => setToast(message);
+    function refreshWebsite() {
+        setRefreshKey(current => current + 1);
+        setLoadingProjects(true);
+    }
     function trackLoading(label, operation) {
         const id = ++loadingTaskIdRef.current;
         let visible = false;
@@ -3634,6 +3728,7 @@ export default function App() {
         >
             <div className="app-shell">
                 <ExpressiveBackground />
+                <PullToRefresh onRefresh={refreshWebsite} />
                 <NavRail
                     session={session}
                     view={view === "project" ? projectReturnView : view}

@@ -153,6 +153,35 @@ textarea:focus-visible {
     --m3e-loading-indicator-contained-container-color: var(--accent-soft);
     --m3e-loading-indicator-contained-active-indicator-color: var(--primary-deep);
 }
+.pull-to-refresh {
+    position: fixed;
+    z-index: 20;
+    top: 10px;
+    left: 50%;
+    min-width: 154px;
+    padding: 8px 14px 8px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transform: translateX(-50%);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-white) 92%, transparent);
+    color: var(--ink);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+    font-size: 12px;
+    font-weight: 700;
+    pointer-events: none;
+}
+.pull-to-refresh m3e-loading-indicator {
+    --m3e-loading-indicator-container-size: 28px;
+    --m3e-loading-indicator-active-indicator-color: var(--primary);
+}
+html.m3-gesture-active,
+html.m3-gesture-active * {
+    user-select: none;
+}
 .network-loading-notice {
     width: fit-content;
     max-width: 100%;
