@@ -95,7 +95,15 @@ service cloud.firestore {
           && request.resource.data.contactEmail.size() <= 254
         ))
         && request.resource.data.createdAt is timestamp;
-      allow update: if isAdmin()
+      allow update: if (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'deletedAt', 'updatedAt'])
+        && request.resource.data.status == 'deleted'
+        && (!resource.data.keys().hasAny(['status']) || resource.data.status == 'published')
+        && request.resource.data.deletedAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+      ) || (
+        isAdmin()
         && request.resource.data.keys().hasAll([
           'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
           'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'contributors', 'createdAt', 'createdLabel'
@@ -124,7 +132,8 @@ service cloud.firestore {
           request.resource.data.contactEmail is string
           && request.resource.data.contactEmail.size() <= 254
         ))
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+      );
       allow delete: if false;
     }
 

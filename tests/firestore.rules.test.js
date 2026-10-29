@@ -142,6 +142,21 @@ test("admin can soft-delete a project without deleting its document", async () =
     await assertFails(deleteDoc(doc(adminDb(), "projects", "project-1")));
 });
 
+test("admin can soft-delete a legacy project without a status field", async () => {
+    const legacyProject = validProject();
+    delete legacyProject.status;
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+        await setDoc(doc(context.firestore(), "projects", "legacy-project"), legacyProject);
+    });
+    await assertSucceeds(
+        updateDoc(doc(adminDb(), "projects", "legacy-project"), {
+            status: "deleted",
+            deletedAt: new Date("2026-01-02T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        }),
+    );
+});
+
 test("admin can soft-delete a faculty profile", async () => {
     await assertSucceeds(updateDoc(doc(adminDb(), "faculty", "faculty-1"), { status: "deleted" }));
     await assertFails(updateDoc(doc(facultyDb(), "faculty", "faculty-1"), { status: "approved" }));
