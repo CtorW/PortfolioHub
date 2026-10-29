@@ -22,6 +22,7 @@ const validProject = overrides => ({
     leaderName: "Student Leader",
     category: "Systems",
     contributors: ["Team Member"],
+    status: "published",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     createdLabel: "Jan 1, 2026",
     ...overrides,
@@ -131,4 +132,17 @@ test("non-admin cannot edit or delete a project", async () => {
     });
     await assertFails(updateDoc(doc(facultyDb(), "projects", "project-1"), { title: "Changed title" }));
     await assertFails(deleteDoc(doc(facultyDb(), "projects", "project-1")));
+});
+
+test("admin can soft-delete a project without deleting its document", async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+        await setDoc(doc(context.firestore(), "projects", "project-1"), validProject());
+    });
+    await assertSucceeds(updateDoc(doc(adminDb(), "projects", "project-1"), { status: "deleted" }));
+    await assertFails(deleteDoc(doc(adminDb(), "projects", "project-1")));
+});
+
+test("admin can soft-delete a faculty profile", async () => {
+    await assertSucceeds(updateDoc(doc(adminDb(), "faculty", "faculty-1"), { status: "deleted" }));
+    await assertFails(updateDoc(doc(facultyDb(), "faculty", "faculty-1"), { status: "approved" }));
 });

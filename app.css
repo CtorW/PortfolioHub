@@ -1560,6 +1560,11 @@ md-menu.assistant-model-menu {
 .account-list {
     display: grid;
 }
+.account-department-divider {
+    margin: 14px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
 .account-row {
     min-height: 70px;
     display: grid;

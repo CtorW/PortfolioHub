@@ -41,17 +41,18 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.keys().hasAll(['name', 'email', 'role', 'status', 'createdAt'])
-        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'department', 'status', 'createdAt'])
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.role == 'faculty'
+        && (!request.resource.data.keys().hasAny(['department']) || request.resource.data.department in ['BSIT', 'BSBA', 'BSED', 'BEED', 'Other'])
         && request.resource.data.status == 'pending'
         && request.resource.data.createdAt is timestamp;
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
-        && request.resource.data.status in ['pending', 'approved', 'rejected'];
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'department', 'deletedAt', 'updatedAt'])
+        && request.resource.data.status in ['pending', 'approved', 'rejected', 'deleted'];
       allow delete: if false;
     }
 
@@ -69,7 +70,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
           'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'contributors', 'createdAt', 'createdLabel',
-          'contactEmail'
+          'contactEmail', 'status'
         ])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
@@ -86,6 +87,7 @@ service cloud.firestore {
         && request.resource.data.leaderName.size() > 0
         && request.resource.data.leaderName.size() <= 100
         && request.resource.data.category in ['Systems', 'AI', 'Applications', 'Websites']
+        && (!request.resource.data.keys().hasAny(['status']) || request.resource.data.status == 'published')
         && request.resource.data.contributors is list
         && request.resource.data.contributors.size() <= 12
         && (!request.resource.data.keys().hasAny(['contactEmail']) || (
@@ -101,7 +103,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'title', 'description', 'imageUrl', 'repositoryUrl', 'demoVideoUrl',
           'facultyUid', 'facultyEmail', 'facultyName', 'leaderName', 'category', 'contributors', 'createdAt', 'createdLabel',
-          'contactEmail', 'updatedAt'
+          'contactEmail', 'status', 'deletedAt', 'updatedAt'
         ])
         && request.resource.data.facultyUid == resource.data.facultyUid
         && request.resource.data.facultyEmail == resource.data.facultyEmail
@@ -115,6 +117,7 @@ service cloud.firestore {
         && request.resource.data.leaderName.size() > 0
         && request.resource.data.leaderName.size() <= 100
         && request.resource.data.category in ['Systems', 'AI', 'Applications', 'Websites']
+        && (!request.resource.data.keys().hasAny(['status']) || request.resource.data.status in ['published', 'deleted'])
         && request.resource.data.contributors is list
         && request.resource.data.contributors.size() <= 12
         && (!request.resource.data.keys().hasAny(['contactEmail']) || (
@@ -122,7 +125,7 @@ service cloud.firestore {
           && request.resource.data.contactEmail.size() <= 254
         ))
         && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if isAdmin();
+      allow delete: if false;
     }
 
     match /deletionRequests/{requestId} {
@@ -151,7 +154,8 @@ service cloud.firestore {
         && request.resource.data.resolvedByUid == request.auth.uid
         && request.resource.data.resolvedAt is timestamp
         && request.resource.data.status in ['deleted', 'rejected']
-        && (request.resource.data.status != 'deleted' || !exists(projectPath(resource.data.projectId)));
+        && (request.resource.data.status != 'deleted'
+          || (exists(projectPath(resource.data.projectId)) && get(projectPath(resource.data.projectId)).data.status == 'deleted'));
       allow delete: if false;
     }
 
@@ -176,7 +180,8 @@ service cloud.firestore {
         && request.resource.data.resolvedByUid == request.auth.uid
         && request.resource.data.resolvedAt is timestamp
         && request.resource.data.status in ['deleted', 'rejected']
-        && (request.resource.data.status != 'deleted' || !exists(facultyPath(resource.data.facultyUid)));
+        && (request.resource.data.status != 'deleted'
+          || (exists(facultyPath(resource.data.facultyUid)) && get(facultyPath(resource.data.facultyUid)).data.status == 'deleted'));
       allow delete: if false;
     }
   }

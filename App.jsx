@@ -47,6 +47,8 @@ import { M3eIconButton } from "@m3e/react/icon-button";
 import { M3eLoadingIndicator } from "@m3e/react/loading-indicator";
 import { M3eNavItem } from "@m3e/react/nav-bar";
 import { M3eNavRail } from "@m3e/react/nav-rail";
+import { M3eOption } from "@m3e/react/option";
+import { M3eSelect } from "@m3e/react/select";
 import { M3eShape } from "@m3e/react/shape";
 import { M3eTheme } from "@m3e/react/theme";
 import { Hct, SchemeExpressive, argbFromHex, hexFromArgb } from "@material/material-color-utilities";
@@ -60,7 +62,6 @@ import {
 import {
     addDoc,
     collection,
-    deleteDoc,
     doc,
     getDoc,
     getCountFromServer,
@@ -80,6 +81,7 @@ import { auth, db, firebaseReady } from "./firebase";
 const OLLAMA_BASE_URL = String(import.meta.env.VITE_OLLAMA_BASE_URL || "").trim().replace(/\/+$/, "");
 const AUTO_APPROVE_FACULTY = String(import.meta.env.VITE_AUTO_APPROVE_FACULTY || "").trim().toLowerCase() === "true";
 const PROJECT_CATEGORIES = ["Systems", "AI", "Applications", "Websites"];
+const FACULTY_DEPARTMENTS = ["BSIT", "BSBA", "BSED", "BEED", "Other"];
 const PROJECT_FILTERS = ["All", ...PROJECT_CATEGORIES];
 const PROJECT_PAGE_SIZE = 24;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -259,9 +261,10 @@ Answer concise questions about this application's workflow using only these fact
 - Firebase Authentication handles sign-in and faculty registration. Firestore stores user profiles and capstones.
 - Faculty access requests require an address ending in .sjc@phinmaed.com.
 - An admin reviews and approves faculty access requests in the Faculty accounts view.
+- Faculty profiles include a department and can be marked deleted in Firestore; this deactivates website access while Firebase Authentication cleanup can be completed manually.
 - Approved faculty can publish a capstone by providing its title, capstone leader's name, category (Systems, AI, Applications, or Websites), description, public image URL, and repository URL. A group contact email and demo video are optional.
-- Publishing a capstone makes it public immediately. The app currently has no draft or pending-capstone approval state.
-- Admins can edit or delete published capstones.
+- Publishing a capstone makes it public immediately. Deleted capstones remain in Firestore for record management but are hidden from the public showcase.
+- Admins can edit or mark published capstones deleted.
 - Pending and approved refer to faculty access accounts, not student capstones.
 If a question requires data not provided here, say what is unknown. Never invent project statuses.`;
 
@@ -1870,13 +1873,18 @@ function FacultyAccountsView({
     accountDeletionRequests,
     approve,
     deny,
-    removeRejected,
+    deactivate,
     resolveProjectDeletion,
     resolveAccountDeletion,
 }) {
     const pending = facultyAccounts.filter(account => account.status === "pending");
     const active = facultyAccounts.filter(account => account.status === "approved");
     const rejected = facultyAccounts.filter(account => account.status === "rejected");
+    const deleted = facultyAccounts.filter(account => account.status === "deleted");
+    const activeByDepartment = FACULTY_DEPARTMENTS.map(department => ({
+        department,
+        accounts: active.filter(account => (account.department || "Other") === department),
+    })).filter(group => group.accounts.length);
     const pendingProjectDeletions = projectDeletionRequests.filter(request => request.status === "pending");
     const resolvedProjectDeletions = projectDeletionRequests.filter(request => request.status !== "pending");
     const pendingAccountDeletions = accountDeletionRequests.filter(request => request.status === "pending");
@@ -1887,9 +1895,10 @@ function FacultyAccountsView({
             <div className="account-details">
                 <strong>{account.name}</strong>
                 <span>{account.email}</span>
+                <small>{account.department || "Department not set"}</small>
             </div>
             <span className={`status-pill status-${status}`}>
-                {status === "pending" ? "Pending" : status === "approved" ? "Approved" : "Denied"}
+                {status === "pending" ? "Pending" : status === "approved" ? "Approved" : status === "deleted" ? "Deleted" : "Denied"}
             </span>
             <div className="account-actions">
                 {status === "pending" && (
@@ -1907,14 +1916,14 @@ function FacultyAccountsView({
                         </MaterialButton>
                     </>
                 )}
-                {status === "rejected" && (
+                {(status === "rejected" || status === "approved") && (
                     <MaterialButton
                         variant="tonal"
                         icon={Trash2}
                         className="m3-compact m3-delete"
-                        onClick={() => removeRejected(account)}
+                        onClick={() => deactivate(account)}
                     >
-                        Delete blocked account
+                        {status === "approved" ? "Deactivate account" : "Mark deleted"}
                     </MaterialButton>
                 )}
             </div>
@@ -1951,6 +1960,25 @@ function FacultyAccountsView({
                 <section className="surface-panel">
                     <div className="panel-heading">
                         <div>
+                            <p className="overline">DEACTIVATED ACCESS</p>
+                            <h2>
+                                Deleted faculty <span className="count-badge">{deleted.length}</span>
+                            </h2>
+                        </div>
+                    </div>
+                    {deleted.length ? (
+                        <div className="account-list">
+                            {deleted.map(account => (
+                                <AccountRow key={account.id} account={account} status="deleted" />
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="inline-empty">No deleted faculty accounts.</p>
+                    )}
+                </section>
+                <section className="surface-panel">
+                    <div className="panel-heading">
+                        <div>
                             <p className="overline">ACTIVE ACCESS</p>
                             <h2>
                                 Approved faculty <span className="count-badge">{active.length}</span>
@@ -1958,11 +1986,14 @@ function FacultyAccountsView({
                         </div>
                     </div>
                     {active.length ? (
-                        <div className="account-list">
-                            {active.map(account => (
-                                <AccountRow key={account.id} account={account} status="approved" />
-                            ))}
-                        </div>
+                        activeByDepartment.map(group => (
+                            <div className="account-list" key={group.department}>
+                                <p className="overline account-department-divider">{group.department}</p>
+                                {group.accounts.map(account => (
+                                    <AccountRow key={account.id} account={account} status="approved" />
+                                ))}
+                            </div>
+                        ))
                     ) : (
                         <p className="inline-empty">No approved faculty accounts.</p>
                     )}
@@ -2066,8 +2097,8 @@ function FacultyAccountsView({
                         </div>
                     </div>
                     <p className="inline-empty">
-                        To approve removal, delete the faculty profile from Firestore and the user from Firebase
-                        Authentication, then choose Deleted.
+                        Deleted marks the Firestore profile inactive immediately. Firebase Authentication cleanup can
+                        be completed manually later.
                     </p>
                     {pendingAccountDeletions.length ? (
                         <div className="account-list">
@@ -2158,6 +2189,7 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                 name: String(data.get("name")).trim(),
                 email: String(data.get("email")).trim().toLowerCase(),
                 password: String(data.get("password")),
+                department: String(data.get("department") || ""),
             });
             if (created) {
                 form.reset();
@@ -2260,6 +2292,19 @@ function LoginView({ role, setRole, login, requestAccess, requestOpen, setReques
                                             Institutional email <b>Required</b>
                                         </span>
                                         <input name="email" type="email" required placeholder="name.sjc@phinmaed.com" />
+                                    </label>
+                                    <label className="form-field">
+                                        <span>
+                                            Department <b>Required</b>
+                                        </span>
+                                        <M3eSelect name="department" required value="" aria-label="Department">
+                                            <M3eOption value="">Choose a department</M3eOption>
+                                            {FACULTY_DEPARTMENTS.map(department => (
+                                                <M3eOption key={department} value={department}>
+                                                    {department}
+                                                </M3eOption>
+                                            ))}
+                                        </M3eSelect>
                                     </label>
                                     <label className="form-field">
                                         <span>
@@ -2796,9 +2841,11 @@ export default function App() {
                     setAuthChecking(false);
                     setSession(null);
                     setToast(
-                        profile.status === "rejected"
-                            ? "Your faculty access request was denied. Contact an administrator."
-                            : "Your faculty account is awaiting admin approval.",
+                        profile.status === "deleted"
+                            ? "This faculty account has been deactivated. Contact an administrator if this was unexpected."
+                            : profile.status === "rejected"
+                              ? "Your faculty access request was denied. Contact an administrator."
+                              : "Your faculty account is awaiting admin approval.",
                     );
                     await firebaseSignOut(auth);
                     return;
@@ -2852,7 +2899,9 @@ export default function App() {
             projectsQuery,
             snapshot => {
                 setLoadingProjects(false);
-                const records = snapshot.docs.map(item => ({ ...item.data(), id: item.id }));
+                const records = snapshot.docs
+                    .map(item => ({ ...item.data(), id: item.id }))
+                    .filter(project => session?.role === "admin" || project.status !== "deleted");
                 records.sort((left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0));
                 if (publicCatalog) {
                     if (!loadedMoreProjectsRef.current) projectCursorRef.current = snapshot.docs.at(-1) || null;
@@ -2863,7 +2912,7 @@ export default function App() {
                     setHasMoreProjects(snapshot.docs.length === PROJECT_PAGE_SIZE);
                     getCountFromServer(collection(db, "projects"))
                         .then(result => {
-                            setProjectCount(result.data().count);
+                            setProjectCount(records.length);
                         })
                         .catch(error => {
                             setToast(`Could not count capstones: ${error.message}`);
@@ -3009,7 +3058,9 @@ export default function App() {
                     limit(PROJECT_PAGE_SIZE),
                 ),
             );
-            const records = page.docs.map(item => ({ ...item.data(), id: item.id }));
+            const records = page.docs
+                .map(item => ({ ...item.data(), id: item.id }))
+                .filter(project => project.status !== "deleted");
             if (page.docs.length) projectCursorRef.current = page.docs.at(-1);
             loadedMoreProjectsRef.current = true;
             setProjects(current => {
@@ -3077,9 +3128,11 @@ export default function App() {
             if (profile.status !== "approved") {
                 await firebaseSignOut(auth);
                 return notify(
-                    profile.status === "rejected"
-                        ? "Your faculty access request was denied. Contact an administrator."
-                        : "Your faculty account is awaiting admin approval.",
+                    profile.status === "deleted"
+                        ? "This faculty account has been deactivated. Contact an administrator."
+                        : profile.status === "rejected"
+                          ? "Your faculty access request was denied. Contact an administrator."
+                          : "Your faculty account is awaiting admin approval.",
                 );
             }
             setSession(profile);
@@ -3095,13 +3148,17 @@ export default function App() {
             notify(`Sign-in failed: ${message}`);
         }
     }
-    async function requestAccess({ name, email, password }) {
+    async function requestAccess({ name, email, password, department }) {
         if (!auth || !db) return notify("Firebase is not configured. Check your environment settings.");
         const trimmedEmail = String(email || "")
             .trim()
             .toLowerCase();
         if (!isFacultyEmail(trimmedEmail)) {
             notify("Faculty email must use the .sjc@phinmaed.com format.");
+            return false;
+        }
+        if (!FACULTY_DEPARTMENTS.includes(department)) {
+            notify("Choose the faculty member's department.");
             return false;
         }
         let credential;
@@ -3112,6 +3169,7 @@ export default function App() {
                 name,
                 email: trimmedEmail,
                 role: "faculty",
+                department,
                 status: nextStatus,
                 createdAt: serverTimestamp(),
             });
@@ -3168,6 +3226,7 @@ export default function App() {
                 facultyUid: session.uid,
                 facultyEmail: session.email,
                 facultyName: session.name,
+                status: "published",
                 createdAt: serverTimestamp(),
                 createdLabel: new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(
                     new Date(),
@@ -3228,10 +3287,14 @@ export default function App() {
     async function deleteProject(id) {
         if (!db) return notify("Firebase is not configured.");
         try {
-            await deleteDoc(doc(db, "projects", id));
+            await updateDoc(doc(db, "projects", id), {
+                status: "deleted",
+                deletedAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
             setDialog(null);
             if (selectedProjectId === id) backFromProject();
-            notify("Capstone deleted from the showcase.");
+            notify("Capstone marked deleted and removed from the public showcase.");
         } catch (error) {
             notify(`Could not delete capstone: ${error.message}`);
         }
@@ -3272,10 +3335,11 @@ export default function App() {
         if (!['deleted', 'rejected'].includes(status)) return;
         try {
             if (status === "deleted") {
-                const project = await getDoc(doc(db, "projects", request.projectId));
-                if (project.exists()) {
-                    return notify("First delete the project document in Firestore, then mark this request Deleted.");
-                }
+                await updateDoc(doc(db, "projects", request.projectId), {
+                    status: "deleted",
+                    deletedAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
             }
             await updateDoc(doc(db, "deletionRequests", request.id), {
                 status,
@@ -3320,10 +3384,11 @@ export default function App() {
         if (!['deleted', 'rejected'].includes(status)) return;
         try {
             if (status === "deleted") {
-                const facultyProfile = await getDoc(doc(db, "faculty", request.facultyUid));
-                if (facultyProfile.exists()) {
-                    return notify("First remove this faculty profile and Auth user in Firebase Console, then mark it Deleted.");
-                }
+                await updateDoc(doc(db, "faculty", request.facultyUid), {
+                    status: "deleted",
+                    deletedAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
             }
             await updateDoc(doc(db, "accountDeletionRequests", request.id), {
                 status,
@@ -3343,6 +3408,23 @@ export default function App() {
         } catch (error) {
             notify(`Could not approve faculty account: ${error.message}`);
         }
+        async function deactivateFaculty(account) {
+            if (!db || session?.role !== "admin") return notify("Only admins can deactivate faculty accounts.");
+            const confirmed = window.confirm(
+                `Mark ${account.name || account.email} as deleted? Their Firebase credentials will remain until an administrator removes them manually, but the website will block sign-in immediately.`,
+            );
+            if (!confirmed) return;
+            try {
+                await updateDoc(doc(db, "faculty", account.id), {
+                    status: "deleted",
+                    deletedAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
+                notify("Faculty account marked deleted. Remove the Firebase Authentication user manually when ready.");
+            } catch (error) {
+                notify(`Could not deactivate faculty account: ${error.message}`);
+            }
+        }
     }
     async function denyFaculty(id) {
         if (!db) return notify("Firebase is not configured.");
@@ -3353,12 +3435,6 @@ export default function App() {
             notify(`Could not deny faculty request: ${error.message}`);
         }
     }
-    async function removeRejectedFaculty(account) {
-        window.alert(
-            `To free ${account.email}, delete this user from Firebase Authentication, then delete faculty/${account.id} from Firestore. The blocked request will disappear from this list when its Firestore profile is removed.`,
-        );
-    }
-
     let content;
     if (view === "project") {
         const project = projects.find(item => item.id === selectedProjectId);
@@ -3416,7 +3492,7 @@ export default function App() {
                 accountDeletionRequests={accountDeletionRequests}
                 approve={id => trackLoading("Approving faculty account", () => approveFaculty(id))}
                 deny={id => trackLoading("Updating faculty access", () => denyFaculty(id))}
-                removeRejected={removeRejectedFaculty}
+                deactivate={account => trackLoading("Deactivating faculty account", () => deactivateFaculty(account))}
                 resolveProjectDeletion={(request, status) =>
                     trackLoading("Updating capstone removal request", () => resolveProjectDeletion(request, status))
                 }
