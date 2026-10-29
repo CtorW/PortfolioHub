@@ -1,0 +1,25 @@
+{
+  "name": "PortfoliHub — Capstone Showcase",
+  "short_name": "PortfoliHub",
+  "description": "Explore student-built capstone projects from the PHINMA Saint Jude College BSIT community.",
+  "start_url": "/PortfolioHub/",
+  "scope": "/PortfolioHub/",
+  "display": "standalone",
+  "background_color": "#f7fbea",
+  "theme_color": "#f7fbea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/PortfolioHub/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/PortfolioHub/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
