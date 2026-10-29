@@ -3442,22 +3442,22 @@ export default function App() {
         } catch (error) {
             notify(`Could not approve faculty account: ${error.message}`);
         }
-        async function deactivateFaculty(account) {
-            if (!db || session?.role !== "admin") return notify("Only admins can deactivate faculty accounts.");
-            const confirmed = window.confirm(
-                `Mark ${account.name || account.email} as deleted? Their Firebase credentials will remain until an administrator removes them manually, but the website will block sign-in immediately.`,
-            );
-            if (!confirmed) return;
-            try {
-                await updateDoc(doc(db, "faculty", account.id), {
-                    status: "deleted",
-                    deletedAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                });
-                notify("Faculty account marked deleted. Remove the Firebase Authentication user manually when ready.");
-            } catch (error) {
-                notify(`Could not deactivate faculty account: ${error.message}`);
-            }
+    }
+    async function deactivateFaculty(account) {
+        if (!db || session?.role !== "admin") return notify("Only admins can deactivate faculty accounts.");
+        const confirmed = window.confirm(
+            `Mark ${account.name || account.email} as deleted? Their Firebase credentials will remain until an administrator removes them manually, but the website will block sign-in immediately.`,
+        );
+        if (!confirmed) return;
+        try {
+            await updateDoc(doc(db, "faculty", account.id), {
+                status: "deleted",
+                deletedAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+            notify("Faculty account marked deleted. Remove the Firebase Authentication user manually when ready.");
+        } catch (error) {
+            notify(`Could not deactivate faculty account: ${error.message}`);
         }
     }
     async function denyFaculty(id) {
