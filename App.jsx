@@ -1286,7 +1286,7 @@ function ProjectArticleView({
                                 icon={Trash2}
                                 onClick={() => onDelete(project)}
                             >
-                                Delete capstone
+                                Mark capstone deleted
                             </MaterialButton>
                         </div>
                     )}
@@ -2552,10 +2552,11 @@ function ProjectDialog({ dialog, close, save, remove }) {
                     </>
                 ) : (
                     <>
-                        <h2 id="modal-heading">Delete this capstone?</h2>
+                        <h2 id="modal-heading">Mark this capstone as deleted?</h2>
                         <p className="dialog-copy">
-                            <strong>{dialog.project.title}</strong> will be removed from the public showcase. This
-                            action cannot be undone.
+                            <strong>{dialog.project.title}</strong> will remain in Firestore for record management,
+                            but its status will change from published to deleted and it will disappear from the public
+                            showcase.
                         </p>
                         <div className="dialog-actions">
                             <MaterialButton variant="tonal" disabled={working} onClick={closeDialog}>
@@ -2567,7 +2568,7 @@ function ProjectDialog({ dialog, close, save, remove }) {
                                 disabled={working}
                                 onClick={deleteCapstone}
                             >
-                                {working ? "Deleting capstone" : "Delete capstone"}
+                                {working ? "Updating status" : "Mark as deleted"}
                             </MaterialButton>
                         </div>
                     </>
@@ -2934,7 +2935,7 @@ export default function App() {
             snapshot => {
                 setLoadingProjects(false);
                 const records = snapshot.docs
-                    .map(item => ({ ...item.data(), id: item.id }))
+                    .map(item => ({ ...item.data(), status: item.data().status || "published", id: item.id }))
                     .filter(project => session?.role === "admin" || project.status !== "deleted");
                 records.sort((left, right) => (right.createdAt?.seconds || 0) - (left.createdAt?.seconds || 0));
                 if (publicCatalog) {
@@ -3045,7 +3046,7 @@ export default function App() {
         getDoc(doc(db, "projects", selectedProjectId))
             .then(snapshot => {
                 if (!active || !snapshot.exists()) return;
-                const project = { ...snapshot.data(), id: snapshot.id };
+                const project = { ...snapshot.data(), status: snapshot.data().status || "published", id: snapshot.id };
                 setProjects(current => {
                     const remaining = current.filter(item => item.id !== project.id);
                     return [...remaining, project].sort(
@@ -3093,7 +3094,7 @@ export default function App() {
                 ),
             );
             const records = page.docs
-                .map(item => ({ ...item.data(), id: item.id }))
+            .map(item => ({ ...item.data(), status: item.data().status || "published", id: item.id }))
                 .filter(project => project.status !== "deleted");
             if (page.docs.length) projectCursorRef.current = page.docs.at(-1);
             loadedMoreProjectsRef.current = true;
@@ -3310,6 +3311,7 @@ export default function App() {
                 contactEmail,
                 imageUrl: image?.url || "",
                 demoVideoUrl: video?.url || "",
+                status: changes.status || "published",
                 updatedAt: serverTimestamp(),
             });
             setDialog(null);
